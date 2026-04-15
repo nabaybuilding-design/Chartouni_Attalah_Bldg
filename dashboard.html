@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chartouni_Attalah_Building - Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app" class="app hidden">
+    <aside id="sidebar" class="sidebar"></aside>
+
+    <header class="header">
+      <div>
+        <h2>Welcome to Chartouni &amp; Attalah Management System</h2>
+        <small id="loggedInUserText"></small>
+      </div>
+      <div class="header-actions">
+        <button class="text-btn" id="savePdfBtn">Save PDF</button>
+        <button class="text-btn" id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <main class="main" id="mainContent"></main>
+
+    <footer class="footer">Made by Rabih Salameh</footer>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Record</h3>
+        <button id="closeModalBtn">Close</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
