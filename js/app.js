@@ -836,7 +836,10 @@ async function initDashboard() {
   .single();
 
   if (apartmentError || !apartmentRow) {
-    alert("No apartment profile is linked to this user.");
+    alert("Apartment query error: " + (apartmentError?.message || "No apartment row found"));
+    console.log("auth user id:", authUser.id);
+    console.log("apartment error:", apartmentError);
+    console.log("apartment row:", apartmentRow);
     await window.supabaseClient.auth.signOut();
     window.location.href = "index.html";
     return;
