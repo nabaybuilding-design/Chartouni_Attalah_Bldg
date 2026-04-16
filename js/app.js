@@ -830,10 +830,10 @@ async function initDashboard() {
   const authUser = authData.user;
 
   const { data: apartmentRow, error: apartmentError } = await window.supabaseClient
-    .from("apartments")
-    .select("*")
-    .eq("auth_user_id", authUser.id)
-    .single();
+  .from("apartments")
+  .select("*")
+  .eq("owner_email", authUser.email)
+  .single();
 
   if (apartmentError || !apartmentRow) {
     alert("No apartment profile is linked to this user.");
