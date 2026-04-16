@@ -733,14 +733,14 @@ function renderPaymentsTable() {
 }
 
 function renderUserDashboard() {
-  const rows = getDetailedDashboardRows().filter(
+  const rows = getCombinedDashboardRows().filter(
     r => r.apartment_id === currentUser.apartment_id
   );
 
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
       <div class="card-title">
-        <h3>My Dashboard</h3>
+        <h3>My Overview</h3>
       </div>
 
       <div class="table-wrap">
@@ -749,10 +749,9 @@ function renderUserDashboard() {
             <tr>
               <th>Apartment ID</th>
               <th>Owner Name</th>
-              <th>Counter Month</th>
-              <th>Usage</th>
-              <th>Water Fees</th>
-              <th>Fix Bill</th>
+              <th>Total Usage</th>
+              <th>Total Water Fees</th>
+              <th>Total Fix Bill</th>
               <th>Total Due</th>
               <th>Total Paid</th>
               <th>Pending Dues</th>
@@ -764,10 +763,9 @@ function renderUserDashboard() {
               <tr>
                 <td>${r.apartment_id}</td>
                 <td>${r.owner_name}</td>
-                <td>${r.counter_month}</td>
-                <td>${formatNumber(r.usage)}</td>
-                <td>${formatNumber(r.water_fees)}</td>
-                <td>${formatNumber(r.fix_bill)}</td>
+                <td>${formatNumber(r.total_usage)}</td>
+                <td>${formatNumber(r.total_water_fees)}</td>
+                <td>${formatNumber(r.total_fix_bill)}</td>
                 <td>${formatNumber(r.total_due)}</td>
                 <td>${formatNumber(r.total_paid)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
