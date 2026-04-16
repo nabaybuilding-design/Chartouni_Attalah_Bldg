@@ -2,7 +2,7 @@ window.APP_CONFIG = {
   appName: "Chartouni_Attalah_Bldg",
 
   // Local mode for now
-  useSupabase: false,
+  useSupabase: true,
 
   // Fill these later
   supabaseUrl: "https://kmsrncvypfhlxnysgacm.supabase.co",
