@@ -19,6 +19,17 @@ function savePDF() {
   window.print();
 }
 
+function getFilteredDetailedRows() {
+  const statusFilter = document.getElementById("paymentsStatusFilter")?.value || "";
+  let rows = getDetailedDashboardRows();
+
+  if (statusFilter) {
+    rows = rows.filter(r => r.status === statusFilter);
+  }
+
+  return rows;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -681,7 +692,7 @@ async function addPayment() {
 }
 
 function renderPaymentsTable() {
-  const rows = getDetailedDashboardRows();
+  const rows = getFilteredDetailedRows();
 
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
