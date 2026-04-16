@@ -1,5 +1,5 @@
 window.APP_CONFIG = {
-  appName: "Chartouni_Attalah_Bldg",
+  appName: "Chartouni_Attalah_Building",
 
   // Local mode for now
   useSupabase: true,
