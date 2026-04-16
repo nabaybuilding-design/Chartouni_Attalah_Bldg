@@ -15,6 +15,10 @@ function formatNumber(value) {
   return Number(value || 0).toFixed(2);
 }
 
+function savePDF() {
+  window.print();
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
