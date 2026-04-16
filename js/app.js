@@ -237,6 +237,108 @@ function getCombinedDashboardRows() {
   return Object.values(grouped);
 }
 
+function nextId(tableName) {
+  return db[tableName].length
+    ? Math.max(...db[tableName].map(row => row.id)) + 1
+    : 1;
+}
+
+function openModal(title, bodyHTML) {
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalBody").innerHTML = bodyHTML;
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("modalBody").innerHTML = "";
+}
+
+function openAddPaymentModal() {
+  openModal("Add Payment", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Apartment ID</label>
+        <select id="pay_apartment_id">
+          ${db.apartments.map(a => `
+            <option value="${a.apartment_id}">${a.apartment_id}</option>
+          `).join("")}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Month</label>
+        <input id="pay_month" type="date">
+      </div>
+
+      <div class="form-group">
+        <label>Amount Paid</label>
+        <input id="pay_amount_paid" type="number">
+      </div>
+
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input id="pay_payment_date" type="date">
+      </div>
+
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>Notes</label>
+        <textarea id="pay_notes"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="addPayment()">Add</button>
+  `);
+}
+
+function openAddPaymentFromDashboard(apartmentId, month) {
+  openModal("Pay Apartment Bill", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Apartment ID</label>
+        <input id="pay_apartment_id" type="text" value="${apartmentId}" readonly>
+      </div>
+
+      <div class="form-group">
+        <label>Month</label>
+        <input id="pay_month" type="date" value="${month}" readonly>
+      </div>
+
+      <div class="form-group">
+        <label>Amount Paid</label>
+        <input id="pay_amount_paid" type="number">
+      </div>
+
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input id="pay_payment_date" type="date">
+      </div>
+
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>Notes</label>
+        <textarea id="pay_notes"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="addPayment()">Add</button>
+  `);
+}
+
+function addPayment() {
+  db.payments.push({
+    id: nextId("payments"),
+    apartment_id: document.getElementById("pay_apartment_id").value,
+    month: document.getElementById("pay_month").value,
+    amount_paid: Number(document.getElementById("pay_amount_paid").value || 0),
+    payment_date: document.getElementById("pay_payment_date").value,
+    notes: document.getElementById("pay_notes").value
+  });
+
+  saveDB();
+  closeModal();
+  renderPaymentsTable();
+}
+
 function renderSidebar() {
   const sidebar = document.getElementById("sidebar");
 
@@ -415,30 +517,47 @@ function renderMonthlyBillsTable() {
 }
 
 function renderPaymentsTable() {
+  const rows = getDetailedDashboardRows();
+
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
       <div class="card-title">
-        <h3>Payments</h3>
+        <h3>Add Payments</h3>
+        <button onclick="openAddPaymentModal()">Add New Record</button>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Apartment ID</th>
-              <th>Month</th>
-              <th>Amount Paid</th>
-              <th>Payment Date</th>
-              <th>Notes</th>
+              <th>Owner Name</th>
+              <th>Counter Month</th>
+              <th>Usage</th>
+              <th>Water Fees</th>
+              <th>Fix Bill</th>
+              <th>Total Due</th>
+              <th>Total Paid</th>
+              <th>Pending Dues</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            ${db.payments.map(r => `
+            ${rows.map(r => `
               <tr>
                 <td>${r.apartment_id}</td>
-                <td>${r.month}</td>
-                <td>${formatNumber(r.amount_paid)}</td>
-                <td>${r.payment_date}</td>
-                <td>${r.notes || ""}</td>
+                <td>${r.owner_name}</td>
+                <td>${r.counter_month}</td>
+                <td>${formatNumber(r.usage)}</td>
+                <td>${formatNumber(r.water_fees)}</td>
+                <td>${formatNumber(r.fix_bill)}</td>
+                <td>${formatNumber(r.total_due)}</td>
+                <td>${formatNumber(r.total_paid)}</td>
+                <td>${formatNumber(r.pending_dues)}</td>
+                <td>${r.status}</td>
+                <td>
+                  <button onclick="openAddPaymentFromDashboard('${r.apartment_id}', '${r.counter_month}')">Pay</button>
+                </td>
               </tr>
             `).join("")}
           </tbody>
@@ -539,9 +658,7 @@ function initDashboard() {
 
   document.getElementById("logoutBtn").addEventListener("click", logout);
   document.getElementById("savePdfBtn").addEventListener("click", savePDF);
-  document.getElementById("closeModalBtn").addEventListener("click", () => {
-    document.getElementById("modal").classList.add("hidden");
-  });
+  document.getElementById("closeModalBtn").addEventListener("click", closeModal);
 
   renderSidebar();
 
