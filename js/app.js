@@ -188,6 +188,7 @@ function getDetailedDashboardRows() {
     else if (totalPaid > 0 && totalPaid < totalDue) status = "Partial";
 
     return {
+      id: wm.id,
       apartment_id: wm.apartment_id,
       owner_name: apartment.owner_name || "",
       counter_month: wm.counter_month,
@@ -254,89 +255,49 @@ function closeModal() {
   document.getElementById("modalBody").innerHTML = "";
 }
 
-function openAddPaymentModal() {
-  openModal("Add Payment", `
-    <div class="grid-2">
-      <div class="form-group">
-        <label>Apartment ID</label>
-        <select id="pay_apartment_id">
-          ${db.apartments.map(a => `
-            <option value="${a.apartment_id}">${a.apartment_id}</option>
-          `).join("")}
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Month</label>
-        <input id="pay_month" type="date">
-      </div>
-
-      <div class="form-group">
-        <label>Amount Paid</label>
-        <input id="pay_amount_paid" type="number">
-      </div>
-
-      <div class="form-group">
-        <label>Payment Date</label>
-        <input id="pay_payment_date" type="date">
-      </div>
-
-      <div class="form-group" style="grid-column: 1 / -1;">
-        <label>Notes</label>
-        <textarea id="pay_notes"></textarea>
-      </div>
-    </div>
-
-    <button class="btn-primary" onclick="addPayment()">Add</button>
-  `);
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;");
 }
 
-function openAddPaymentFromDashboard(apartmentId, month) {
-  openModal("Pay Apartment Bill", `
-    <div class="grid-2">
-      <div class="form-group">
-        <label>Apartment ID</label>
-        <input id="pay_apartment_id" type="text" value="${apartmentId}" readonly>
-      </div>
+function saveRow(tableName, id) {
+  const row = db[tableName].find(r => r.id === id);
+  if (!row) return;
 
-      <div class="form-group">
-        <label>Month</label>
-        <input id="pay_month" type="date" value="${month}" readonly>
-      </div>
-
-      <div class="form-group">
-        <label>Amount Paid</label>
-        <input id="pay_amount_paid" type="number">
-      </div>
-
-      <div class="form-group">
-        <label>Payment Date</label>
-        <input id="pay_payment_date" type="date">
-      </div>
-
-      <div class="form-group" style="grid-column: 1 / -1;">
-        <label>Notes</label>
-        <textarea id="pay_notes"></textarea>
-      </div>
-    </div>
-
-    <button class="btn-primary" onclick="addPayment()">Add</button>
-  `);
-}
-
-function addPayment() {
-  db.payments.push({
-    id: nextId("payments"),
-    apartment_id: document.getElementById("pay_apartment_id").value,
-    month: document.getElementById("pay_month").value,
-    amount_paid: Number(document.getElementById("pay_amount_paid").value || 0),
-    payment_date: document.getElementById("pay_payment_date").value,
-    notes: document.getElementById("pay_notes").value
+  const elements = document.querySelectorAll(`[data-table="${tableName}"][data-id="${id}"]`);
+  elements.forEach(el => {
+    let value = el.value;
+    if (el.type === "number") {
+      value = Number(value || 0);
+    }
+    row[el.dataset.field] = value;
   });
 
   saveDB();
-  closeModal();
-  renderPaymentsTable();
+
+  if (tableName === "apartments") renderApartmentsTable();
+  if (tableName === "waterMeter") renderWaterMeterTable();
+  if (tableName === "monthlyBills") renderMonthlyBillsTable();
+}
+
+function deleteRow(tableName, id) {
+  db[tableName] = db[tableName].filter(r => r.id !== id);
+  saveDB();
+
+  if (tableName === "apartments") renderApartmentsTable();
+  if (tableName === "waterMeter") renderWaterMeterTable();
+  if (tableName === "monthlyBills") renderMonthlyBillsTable();
+}
+
+function apartmentOptions(selectedValue = "") {
+  return db.apartments.map(a => `
+    <option value="${a.apartment_id}" ${a.apartment_id === selectedValue ? "selected" : ""}>
+      ${a.apartment_id}
+    </option>
+  `).join("");
 }
 
 function renderSidebar() {
@@ -412,11 +373,69 @@ function renderAdminOverview() {
   `;
 }
 
+function openAddApartmentModal() {
+  openModal("Add Apartment", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Apartment ID</label>
+        <input id="new_apartment_id" type="text">
+      </div>
+      <div class="form-group">
+        <label>Owner Name</label>
+        <input id="new_owner_name" type="text">
+      </div>
+      <div class="form-group">
+        <label>Owner Email</label>
+        <input id="new_owner_email" type="email">
+      </div>
+      <div class="form-group">
+        <label>Owner Mobile</label>
+        <input id="new_owner_mobile" type="text">
+      </div>
+      <div class="form-group">
+        <label>Owner Role</label>
+        <select id="new_owner_role">
+          <option value="User">User</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input id="new_password" type="text">
+      </div>
+      <div class="form-group">
+        <label>Created_at</label>
+        <input id="new_created_at" type="date">
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="addApartment()">Add</button>
+  `);
+}
+
+function addApartment() {
+  db.apartments.push({
+    id: nextId("apartments"),
+    apartment_id: document.getElementById("new_apartment_id").value,
+    owner_name: document.getElementById("new_owner_name").value,
+    owner_email: document.getElementById("new_owner_email").value,
+    owner_mobile: document.getElementById("new_owner_mobile").value,
+    owner_role: document.getElementById("new_owner_role").value,
+    password: document.getElementById("new_password").value,
+    created_at: document.getElementById("new_created_at").value
+  });
+
+  saveDB();
+  closeModal();
+  renderApartmentsTable();
+}
+
 function renderApartmentsTable() {
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
       <div class="card-title">
         <h3>Apartments</h3>
+        <button onclick="openAddApartmentModal()">Add New Record</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -429,18 +448,28 @@ function renderApartmentsTable() {
               <th>Owner Role</th>
               <th>Password</th>
               <th>Created_at</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             ${db.apartments.map(r => `
               <tr>
-                <td>${r.apartment_id}</td>
-                <td>${r.owner_name}</td>
-                <td>${r.owner_email}</td>
-                <td>${r.owner_mobile}</td>
-                <td>${r.owner_role}</td>
-                <td>${r.password || ""}</td>
-                <td>${r.created_at}</td>
+                <td><input type="text" data-table="apartments" data-id="${r.id}" data-field="apartment_id" value="${escapeHtml(r.apartment_id)}"></td>
+                <td><input type="text" data-table="apartments" data-id="${r.id}" data-field="owner_name" value="${escapeHtml(r.owner_name)}"></td>
+                <td><input type="email" data-table="apartments" data-id="${r.id}" data-field="owner_email" value="${escapeHtml(r.owner_email)}"></td>
+                <td><input type="text" data-table="apartments" data-id="${r.id}" data-field="owner_mobile" value="${escapeHtml(r.owner_mobile)}"></td>
+                <td>
+                  <select data-table="apartments" data-id="${r.id}" data-field="owner_role">
+                    <option value="User" ${r.owner_role === "User" ? "selected" : ""}>User</option>
+                    <option value="Admin" ${r.owner_role === "Admin" ? "selected" : ""}>Admin</option>
+                  </select>
+                </td>
+                <td><input type="text" data-table="apartments" data-id="${r.id}" data-field="password" value="${escapeHtml(r.password || "")}"></td>
+                <td><input type="date" data-table="apartments" data-id="${r.id}" data-field="created_at" value="${escapeHtml(r.created_at)}"></td>
+                <td>
+                  <button onclick="saveRow('apartments', ${r.id})">Save</button>
+                  <button class="btn-danger" onclick="deleteRow('apartments', ${r.id})">Del</button>
+                </td>
               </tr>
             `).join("")}
           </tbody>
@@ -450,11 +479,58 @@ function renderApartmentsTable() {
   `;
 }
 
+function openAddWaterMeterModal() {
+  openModal("Add WaterMeter", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Apartment ID</label>
+        <select id="wm_apartment_id">
+          ${apartmentOptions()}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Counter Month</label>
+        <input id="wm_counter_month" type="date">
+      </div>
+      <div class="form-group">
+        <label>Previous Counter</label>
+        <input id="wm_previous_counter" type="number">
+      </div>
+      <div class="form-group">
+        <label>New Counter</label>
+        <input id="wm_new_counter" type="number">
+      </div>
+      <div class="form-group">
+        <label>Created_at</label>
+        <input id="wm_created_at" type="date">
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="addWaterMeter()">Add</button>
+  `);
+}
+
+function addWaterMeter() {
+  db.waterMeter.push({
+    id: nextId("waterMeter"),
+    apartment_id: document.getElementById("wm_apartment_id").value,
+    counter_month: document.getElementById("wm_counter_month").value,
+    previous_counter: Number(document.getElementById("wm_previous_counter").value || 0),
+    new_counter: Number(document.getElementById("wm_new_counter").value || 0),
+    created_at: document.getElementById("wm_created_at").value
+  });
+
+  saveDB();
+  closeModal();
+  renderWaterMeterTable();
+}
+
 function renderWaterMeterTable() {
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
       <div class="card-title">
         <h3>WaterMeter</h3>
+        <button onclick="openAddWaterMeterModal()">Add New Record</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -465,16 +541,25 @@ function renderWaterMeterTable() {
               <th>Previous Counter</th>
               <th>New Counter</th>
               <th>Created_at</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             ${db.waterMeter.map(r => `
               <tr>
-                <td>${r.apartment_id}</td>
-                <td>${r.counter_month}</td>
-                <td>${r.previous_counter}</td>
-                <td>${r.new_counter}</td>
-                <td>${r.created_at}</td>
+                <td>
+                  <select data-table="waterMeter" data-id="${r.id}" data-field="apartment_id">
+                    ${apartmentOptions(r.apartment_id)}
+                  </select>
+                </td>
+                <td><input type="date" data-table="waterMeter" data-id="${r.id}" data-field="counter_month" value="${escapeHtml(r.counter_month)}"></td>
+                <td><input type="number" data-table="waterMeter" data-id="${r.id}" data-field="previous_counter" value="${escapeHtml(r.previous_counter)}"></td>
+                <td><input type="number" data-table="waterMeter" data-id="${r.id}" data-field="new_counter" value="${escapeHtml(r.new_counter)}"></td>
+                <td><input type="date" data-table="waterMeter" data-id="${r.id}" data-field="created_at" value="${escapeHtml(r.created_at)}"></td>
+                <td>
+                  <button onclick="saveRow('waterMeter', ${r.id})">Save</button>
+                  <button class="btn-danger" onclick="deleteRow('waterMeter', ${r.id})">Del</button>
+                </td>
               </tr>
             `).join("")}
           </tbody>
@@ -484,11 +569,51 @@ function renderWaterMeterTable() {
   `;
 }
 
+function openAddMonthlyBillModal() {
+  openModal("Add MonthlyBills", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Month</label>
+        <input id="mb_month" type="date">
+      </div>
+      <div class="form-group">
+        <label>Water Bill</label>
+        <input id="mb_water_bill" type="number">
+      </div>
+      <div class="form-group">
+        <label>Fix Bill</label>
+        <input id="mb_fix_bill" type="number">
+      </div>
+      <div class="form-group">
+        <label>Created_at</label>
+        <input id="mb_created_at" type="date">
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="addMonthlyBill()">Add</button>
+  `);
+}
+
+function addMonthlyBill() {
+  db.monthlyBills.push({
+    id: nextId("monthlyBills"),
+    month: document.getElementById("mb_month").value,
+    water_bill: Number(document.getElementById("mb_water_bill").value || 0),
+    fix_bill: Number(document.getElementById("mb_fix_bill").value || 0),
+    created_at: document.getElementById("mb_created_at").value
+  });
+
+  saveDB();
+  closeModal();
+  renderMonthlyBillsTable();
+}
+
 function renderMonthlyBillsTable() {
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
       <div class="card-title">
         <h3>MonthlyBills</h3>
+        <button onclick="openAddMonthlyBillModal()">Add New Record</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -498,15 +623,20 @@ function renderMonthlyBillsTable() {
               <th>Water Bill</th>
               <th>Fix Bill</th>
               <th>Created_at</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             ${db.monthlyBills.map(r => `
               <tr>
-                <td>${r.month}</td>
-                <td>${r.water_bill}</td>
-                <td>${r.fix_bill}</td>
-                <td>${r.created_at}</td>
+                <td><input type="date" data-table="monthlyBills" data-id="${r.id}" data-field="month" value="${escapeHtml(r.month)}"></td>
+                <td><input type="number" data-table="monthlyBills" data-id="${r.id}" data-field="water_bill" value="${escapeHtml(r.water_bill)}"></td>
+                <td><input type="number" data-table="monthlyBills" data-id="${r.id}" data-field="fix_bill" value="${escapeHtml(r.fix_bill)}"></td>
+                <td><input type="date" data-table="monthlyBills" data-id="${r.id}" data-field="created_at" value="${escapeHtml(r.created_at)}"></td>
+                <td>
+                  <button onclick="saveRow('monthlyBills', ${r.id})">Save</button>
+                  <button class="btn-danger" onclick="deleteRow('monthlyBills', ${r.id})">Del</button>
+                </td>
               </tr>
             `).join("")}
           </tbody>
@@ -514,6 +644,89 @@ function renderMonthlyBillsTable() {
       </div>
     </div>
   `;
+}
+
+function openAddPaymentModal() {
+  openModal("Add Payment", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Apartment ID</label>
+        <select id="pay_apartment_id">
+          ${apartmentOptions()}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Month</label>
+        <input id="pay_month" type="date">
+      </div>
+
+      <div class="form-group">
+        <label>Amount Paid</label>
+        <input id="pay_amount_paid" type="number">
+      </div>
+
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input id="pay_payment_date" type="date">
+      </div>
+
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>Notes</label>
+        <textarea id="pay_notes"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="addPayment()">Add</button>
+  `);
+}
+
+function openAddPaymentFromDashboard(apartmentId, month) {
+  openModal("Pay Apartment Bill", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Apartment ID</label>
+        <input id="pay_apartment_id" type="text" value="${apartmentId}" readonly>
+      </div>
+
+      <div class="form-group">
+        <label>Month</label>
+        <input id="pay_month" type="date" value="${month}" readonly>
+      </div>
+
+      <div class="form-group">
+        <label>Amount Paid</label>
+        <input id="pay_amount_paid" type="number">
+      </div>
+
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input id="pay_payment_date" type="date">
+      </div>
+
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>Notes</label>
+        <textarea id="pay_notes"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="addPayment()">Add</button>
+  `);
+}
+
+function addPayment() {
+  db.payments.push({
+    id: nextId("payments"),
+    apartment_id: document.getElementById("pay_apartment_id").value,
+    month: document.getElementById("pay_month").value,
+    amount_paid: Number(document.getElementById("pay_amount_paid").value || 0),
+    payment_date: document.getElementById("pay_payment_date").value,
+    notes: document.getElementById("pay_notes").value
+  });
+
+  saveDB();
+  closeModal();
+  renderPaymentsTable();
 }
 
 function renderPaymentsTable() {
