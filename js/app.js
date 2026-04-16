@@ -698,7 +698,16 @@ function renderPaymentsTable() {
     <div class="card">
       <div class="card-title">
         <h3>Add Payments</h3>
-        <button class="btn-primary" type="button" onclick="openAddPaymentModal()">Add New Record</button>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label for="paymentsStatusFilter">Status</label>
+          <select id="paymentsStatusFilter" onchange="renderPaymentsTable()">
+            <option value="">All</option>
+            <option value="Paid">Paid</option>
+            <option value="Partial">Partial</option>
+            <option value="Overdue">Overdue</option>
+          </select>
+          <button class="btn-primary" type="button" onclick="openAddPaymentModal()">Add New Record</button>
+        </div>
       </div>
 
       <div class="table-wrap">
