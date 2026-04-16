@@ -115,7 +115,7 @@ function getCombinedDashboardRows() {
     }
 
     grouped[row.apartment_id].total_usage += row.usage;
-    grouped[row.apartment_id].total_water_fees += row.water_fees;
+    grouped[row.apartment_id].total_water_fees += Number(row.water_fees || 0);
     grouped[row.apartment_id].total_fix_bill += row.fix_bill;
     grouped[row.apartment_id].total_due += row.total_due;
     grouped[row.apartment_id].total_paid += row.total_paid;
