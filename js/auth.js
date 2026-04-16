@@ -1,4 +1,6 @@
-async function loginWithSupabase() {
+async function loginWithSupabase(event) {
+  if (event) event.preventDefault();
+
   const email = document.getElementById("loginEmail").value.trim().toLowerCase();
   const password = document.getElementById("loginPassword").value;
   const message = document.getElementById("loginMessage");
@@ -10,7 +12,7 @@ async function loginWithSupabase() {
     return;
   }
 
-  const { error } = await window.supabaseClient.auth.signInWithPassword({
+  const { data, error } = await window.supabaseClient.auth.signInWithPassword({
     email,
     password
   });
@@ -20,7 +22,17 @@ async function loginWithSupabase() {
     return;
   }
 
+  if (!data?.user) {
+    message.textContent = "Login failed.";
+    return;
+  }
+
   window.location.href = "dashboard.html";
 }
 
-document.getElementById("loginBtn").addEventListener("click", loginWithSupabase);
+document.addEventListener("DOMContentLoaded", () => {
+  const loginBtn = document.getElementById("loginBtn");
+  if (loginBtn) {
+    loginBtn.addEventListener("click", loginWithSupabase);
+  }
+});
