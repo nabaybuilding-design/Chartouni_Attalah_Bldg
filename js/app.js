@@ -815,57 +815,79 @@ function renderUserPaymentHistory() {
 }
 
 async function initDashboard() {
-  if (!window.APP_CONFIG.useSupabase || !window.supabaseClient) {
-    window.location.href = "index.html";
-    return;
-  }
+  try {
+    if (!window.APP_CONFIG.useSupabase || !window.supabaseClient) {
+      alert("Supabase is not configured.");
+      window.location.href = "index.html";
+      return;
+    }
 
-  const { data: authData, error: authError } = await window.supabaseClient.auth.getUser();
+    const { data: authData, error: authError } = await window.supabaseClient.auth.getUser();
 
-  if (authError || !authData?.user) {
-    window.location.href = "index.html";
-    return;
-  }
+    if (authError || !authData?.user) {
+      alert("Auth error: " + (authError?.message || "No logged in user"));
+      window.location.href = "index.html";
+      return;
+    }
 
-  const authUser = authData.user;
+    const authUser = authData.user;
 
-  const { data: apartmentRow, error: apartmentError } = await window.supabaseClient
-  .from("apartments")
-  .select("*")
-  .eq("owner_email", authUser.email)
-  .single();
+    const { data: apartmentRow, error: apartmentError } = await window.supabaseClient
+      .from("apartments")
+      .select("*")
+      .eq("auth_user_id", authUser.id)
+      .single();
 
-  if (apartmentError || !apartmentRow) {
-    alert("Apartment query error: " + (apartmentError?.message || "No apartment row found"));
-    console.log("auth user id:", authUser.id);
-    console.log("apartment error:", apartmentError);
-    console.log("apartment row:", apartmentRow);
-    await window.supabaseClient.auth.signOut();
-    window.location.href = "index.html";
-    return;
-  }
+    if (apartmentError || !apartmentRow) {
+      alert("Apartment query error: " + (apartmentError?.message || "No apartment row found"));
+      await window.supabaseClient.auth.signOut();
+      window.location.href = "index.html";
+      return;
+    }
 
-  currentUser = apartmentRow;
+    currentUser = apartmentRow;
 
-  await fetchAllData();
+    const [apartmentsRes, waterRes, billsRes, paymentsRes] = await Promise.all([
+      window.supabaseClient.from("apartments").select("*").order("id", { ascending: true }),
+      window.supabaseClient.from("water_meter").select("*").order("id", { ascending: true }),
+      window.supabaseClient.from("monthly_bills").select("*").order("id", { ascending: true }),
+      window.supabaseClient.from("payments").select("*").order("id", { ascending: true })
+    ]);
 
-  document.getElementById("app").classList.remove("hidden");
-  document.getElementById("loggedInUserText").textContent = currentUser.owner_email;
+    if (apartmentsRes.error) throw new Error("apartments: " + apartmentsRes.error.message);
+    if (waterRes.error) throw new Error("water_meter: " + waterRes.error.message);
+    if (billsRes.error) throw new Error("monthly_bills: " + billsRes.error.message);
+    if (paymentsRes.error) throw new Error("payments: " + paymentsRes.error.message);
 
-  document.getElementById("logoutBtn").addEventListener("click", async () => {
-    await window.supabaseClient.auth.signOut();
-    window.location.href = "index.html";
-  });
+    db = {
+      apartments: apartmentsRes.data || [],
+      waterMeter: waterRes.data || [],
+      monthlyBills: billsRes.data || [],
+      payments: paymentsRes.data || []
+    };
 
-  document.getElementById("savePdfBtn").addEventListener("click", savePDF);
-  document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+    document.getElementById("app").classList.remove("hidden");
+    document.getElementById("loggedInUserText").textContent = currentUser.owner_email;
 
-  renderSidebar();
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await window.supabaseClient.auth.signOut();
+      window.location.href = "index.html";
+    });
 
-  if (currentUser.owner_role === "Admin") {
-    renderAdminOverview();
-  } else {
-    renderUserDashboard();
+    document.getElementById("savePdfBtn").addEventListener("click", savePDF);
+    document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+
+    renderSidebar();
+
+    if (currentUser.owner_role === "Admin") {
+      renderAdminOverview();
+    } else {
+      renderUserDashboard();
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Dashboard load error: " + err.message);
   }
 }
 
