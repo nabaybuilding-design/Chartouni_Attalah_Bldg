@@ -145,6 +145,28 @@ function formatNumber(value) {
   return Number(value || 0).toFixed(2);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function nextId(tableName) {
+  return db[tableName].length
+    ? Math.max(...db[tableName].map(row => row.id)) + 1
+    : 1;
+}
+
+function apartmentOptions(selectedValue = "") {
+  return db.apartments.map(a => `
+    <option value="${a.apartment_id}" ${a.apartment_id === selectedValue ? "selected" : ""}>
+      ${a.apartment_id}
+    </option>
+  `).join("");
+}
+
 function calculateWaterFees(wm) {
   const usage = Number(wm.new_counter || 0) - Number(wm.previous_counter || 0);
 
@@ -152,7 +174,7 @@ function calculateWaterFees(wm) {
     b => getMonthKey(b.month) === getMonthKey(wm.counter_month)
   );
 
-  const waterBill = Number(waterBillRow?.water_bill || 0);
+  const waterBill = Number((waterBillRow && waterBillRow.water_bill) || 0);
 
   const totalUsageSameMonth = db.waterMeter
     .filter(row => getMonthKey(row.counter_month) === getMonthKey(wm.counter_month))
@@ -170,10 +192,10 @@ function getDetailedDashboardRows() {
     const apartment = db.apartments.find(a => a.apartment_id === wm.apartment_id) || {};
     const monthKey = getMonthKey(wm.counter_month);
     const usage = Number(wm.new_counter || 0) - Number(wm.previous_counter || 0);
-    const monthBill = db.monthlyBills.find(b => getMonthKey(b.month) === monthKey) || {
-      water_bill: 0,
-      fix_bill: 0
-    };
+
+    const monthBill = db.monthlyBills.find(
+      b => getMonthKey(b.month) === monthKey
+    ) || { water_bill: 0, fix_bill: 0 };
 
     const waterFees = calculateWaterFees(wm);
     const fixBill = Number(monthBill.fix_bill || 0);
@@ -184,8 +206,11 @@ function getDetailedDashboardRows() {
       .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
 
     let status = "Overdue";
-    if (totalPaid >= totalDue && totalDue > 0) status = "Paid";
-    else if (totalPaid > 0 && totalPaid < totalDue) status = "Partial";
+    if (totalPaid >= totalDue && totalDue > 0) {
+      status = "Paid";
+    } else if (totalPaid > 0 && totalPaid < totalDue) {
+      status = "Partial";
+    }
 
     return {
       id: wm.id,
@@ -230,18 +255,16 @@ function getCombinedDashboardRows() {
   });
 
   Object.values(grouped).forEach(item => {
-    if (item.total_paid >= item.total_due && item.total_due > 0) item.status = "Paid";
-    else if (item.total_paid > 0 && item.total_paid < item.total_due) item.status = "Partial";
-    else item.status = "Overdue";
+    if (item.total_paid >= item.total_due && item.total_due > 0) {
+      item.status = "Paid";
+    } else if (item.total_paid > 0 && item.total_paid < item.total_due) {
+      item.status = "Partial";
+    } else {
+      item.status = "Overdue";
+    }
   });
 
   return Object.values(grouped);
-}
-
-function nextId(tableName) {
-  return db[tableName].length
-    ? Math.max(...db[tableName].map(row => row.id)) + 1
-    : 1;
 }
 
 function openModal(title, bodyHTML) {
@@ -255,14 +278,6 @@ function closeModal() {
   document.getElementById("modalBody").innerHTML = "";
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;");
-}
-
 function saveRow(tableName, id) {
   const row = db[tableName].find(r => r.id === id);
   if (!row) return;
@@ -270,9 +285,7 @@ function saveRow(tableName, id) {
   const elements = document.querySelectorAll(`[data-table="${tableName}"][data-id="${id}"]`);
   elements.forEach(el => {
     let value = el.value;
-    if (el.type === "number") {
-      value = Number(value || 0);
-    }
+    if (el.type === "number") value = Number(value || 0);
     row[el.dataset.field] = value;
   });
 
@@ -292,13 +305,9 @@ function deleteRow(tableName, id) {
   if (tableName === "monthlyBills") renderMonthlyBillsTable();
 }
 
-function apartmentOptions(selectedValue = "") {
-  return db.apartments.map(a => `
-    <option value="${a.apartment_id}" ${a.apartment_id === selectedValue ? "selected" : ""}>
-      ${a.apartment_id}
-    </option>
-  `).join("");
-}
+/* =========================
+   Sidebar
+========================= */
 
 function renderSidebar() {
   const sidebar = document.getElementById("sidebar");
@@ -306,20 +315,24 @@ function renderSidebar() {
   if (currentUser.owner_role === "Admin") {
     sidebar.innerHTML = `
       <h3>Admin Menu</h3>
-      <button class="menu-btn" onclick="renderAdminOverview()">Overview</button>
-      <button class="menu-btn" onclick="renderApartmentsTable()">Add Apartment</button>
-      <button class="menu-btn" onclick="renderWaterMeterTable()">Add WaterMeter</button>
-      <button class="menu-btn" onclick="renderMonthlyBillsTable()">Add MonthlyBills</button>
-      <button class="menu-btn" onclick="renderPaymentsTable()">Add Payments</button>
+      <button class="menu-btn" type="button" onclick="renderAdminOverview()">Overview</button>
+      <button class="menu-btn" type="button" onclick="renderApartmentsTable()">Add Apartment</button>
+      <button class="menu-btn" type="button" onclick="renderWaterMeterTable()">Add WaterMeter</button>
+      <button class="menu-btn" type="button" onclick="renderMonthlyBillsTable()">Add MonthlyBills</button>
+      <button class="menu-btn" type="button" onclick="renderPaymentsTable()">Add Payments</button>
     `;
   } else {
     sidebar.innerHTML = `
       <h3>User Menu</h3>
-      <button class="menu-btn" onclick="renderUserDashboard()">My Overview</button>
-      <button class="menu-btn" onclick="renderUserPaymentHistory()">My Payment History</button>
+      <button class="menu-btn" type="button" onclick="renderUserDashboard()">My Overview</button>
+      <button class="menu-btn" type="button" onclick="renderUserPaymentHistory()">My Payment History</button>
     `;
   }
 }
+
+/* =========================
+   Overview
+========================= */
 
 function renderAdminOverview() {
   const rows = getCombinedDashboardRows();
@@ -336,7 +349,10 @@ function renderAdminOverview() {
     </div>
 
     <div class="card">
-      <div class="card-title"><h3>Combined_Dashboard</h3></div>
+      <div class="card-title">
+        <h3>Combined_Dashboard</h3>
+      </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -372,6 +388,10 @@ function renderAdminOverview() {
     </div>
   `;
 }
+
+/* =========================
+   Apartments
+========================= */
 
 function openAddApartmentModal() {
   openModal("Add Apartment", `
@@ -409,7 +429,7 @@ function openAddApartmentModal() {
       </div>
     </div>
 
-    <button class="btn-primary" onclick="addApartment()">Add</button>
+    <button class="btn-primary" type="button" onclick="addApartment()">Add</button>
   `);
 }
 
@@ -435,8 +455,9 @@ function renderApartmentsTable() {
     <div class="card">
       <div class="card-title">
         <h3>Apartments</h3>
-        <button onclick="openAddApartmentModal()">Add New Record</button>
+        <button class="btn-primary" type="button" onclick="openAddApartmentModal()">Add New Record</button>
       </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -448,7 +469,7 @@ function renderApartmentsTable() {
               <th>Owner Role</th>
               <th>Password</th>
               <th>Created_at</th>
-              <th>Actions</th>
+              <th style="min-width: 160px;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -467,8 +488,10 @@ function renderApartmentsTable() {
                 <td><input type="text" data-table="apartments" data-id="${r.id}" data-field="password" value="${escapeHtml(r.password || "")}"></td>
                 <td><input type="date" data-table="apartments" data-id="${r.id}" data-field="created_at" value="${escapeHtml(r.created_at)}"></td>
                 <td>
-                  <button onclick="saveRow('apartments', ${r.id})">Save</button>
-                  <button class="btn-danger" onclick="deleteRow('apartments', ${r.id})">Del</button>
+                  <div style="display:flex; gap:6px; min-width:140px;">
+                    <button type="button" onclick="saveRow('apartments', ${r.id})">Save</button>
+                    <button type="button" class="btn-danger" onclick="deleteRow('apartments', ${r.id})">Del</button>
+                  </div>
                 </td>
               </tr>
             `).join("")}
@@ -478,6 +501,10 @@ function renderApartmentsTable() {
     </div>
   `;
 }
+
+/* =========================
+   WaterMeter
+========================= */
 
 function openAddWaterMeterModal() {
   openModal("Add WaterMeter", `
@@ -506,7 +533,7 @@ function openAddWaterMeterModal() {
       </div>
     </div>
 
-    <button class="btn-primary" onclick="addWaterMeter()">Add</button>
+    <button class="btn-primary" type="button" onclick="addWaterMeter()">Add</button>
   `);
 }
 
@@ -530,8 +557,9 @@ function renderWaterMeterTable() {
     <div class="card">
       <div class="card-title">
         <h3>WaterMeter</h3>
-        <button onclick="openAddWaterMeterModal()">Add New Record</button>
+        <button class="btn-primary" type="button" onclick="openAddWaterMeterModal()">Add New Record</button>
       </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -541,7 +569,7 @@ function renderWaterMeterTable() {
               <th>Previous Counter</th>
               <th>New Counter</th>
               <th>Created_at</th>
-              <th>Actions</th>
+              <th style="min-width: 160px;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -557,8 +585,10 @@ function renderWaterMeterTable() {
                 <td><input type="number" data-table="waterMeter" data-id="${r.id}" data-field="new_counter" value="${escapeHtml(r.new_counter)}"></td>
                 <td><input type="date" data-table="waterMeter" data-id="${r.id}" data-field="created_at" value="${escapeHtml(r.created_at)}"></td>
                 <td>
-                  <button onclick="saveRow('waterMeter', ${r.id})">Save</button>
-                  <button class="btn-danger" onclick="deleteRow('waterMeter', ${r.id})">Del</button>
+                  <div style="display:flex; gap:6px; min-width:140px;">
+                    <button type="button" onclick="saveRow('waterMeter', ${r.id})">Save</button>
+                    <button type="button" class="btn-danger" onclick="deleteRow('waterMeter', ${r.id})">Del</button>
+                  </div>
                 </td>
               </tr>
             `).join("")}
@@ -568,6 +598,10 @@ function renderWaterMeterTable() {
     </div>
   `;
 }
+
+/* =========================
+   MonthlyBills
+========================= */
 
 function openAddMonthlyBillModal() {
   openModal("Add MonthlyBills", `
@@ -590,7 +624,7 @@ function openAddMonthlyBillModal() {
       </div>
     </div>
 
-    <button class="btn-primary" onclick="addMonthlyBill()">Add</button>
+    <button class="btn-primary" type="button" onclick="addMonthlyBill()">Add</button>
   `);
 }
 
@@ -613,8 +647,9 @@ function renderMonthlyBillsTable() {
     <div class="card">
       <div class="card-title">
         <h3>MonthlyBills</h3>
-        <button onclick="openAddMonthlyBillModal()">Add New Record</button>
+        <button class="btn-primary" type="button" onclick="openAddMonthlyBillModal()">Add New Record</button>
       </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -623,7 +658,7 @@ function renderMonthlyBillsTable() {
               <th>Water Bill</th>
               <th>Fix Bill</th>
               <th>Created_at</th>
-              <th>Actions</th>
+              <th style="min-width: 160px;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -634,8 +669,10 @@ function renderMonthlyBillsTable() {
                 <td><input type="number" data-table="monthlyBills" data-id="${r.id}" data-field="fix_bill" value="${escapeHtml(r.fix_bill)}"></td>
                 <td><input type="date" data-table="monthlyBills" data-id="${r.id}" data-field="created_at" value="${escapeHtml(r.created_at)}"></td>
                 <td>
-                  <button onclick="saveRow('monthlyBills', ${r.id})">Save</button>
-                  <button class="btn-danger" onclick="deleteRow('monthlyBills', ${r.id})">Del</button>
+                  <div style="display:flex; gap:6px; min-width:140px;">
+                    <button type="button" onclick="saveRow('monthlyBills', ${r.id})">Save</button>
+                    <button type="button" class="btn-danger" onclick="deleteRow('monthlyBills', ${r.id})">Del</button>
+                  </div>
                 </td>
               </tr>
             `).join("")}
@@ -645,6 +682,10 @@ function renderMonthlyBillsTable() {
     </div>
   `;
 }
+
+/* =========================
+   Payments
+========================= */
 
 function openAddPaymentModal() {
   openModal("Add Payment", `
@@ -677,7 +718,7 @@ function openAddPaymentModal() {
       </div>
     </div>
 
-    <button class="btn-primary" onclick="addPayment()">Add</button>
+    <button class="btn-primary" type="button" onclick="addPayment()">Add</button>
   `);
 }
 
@@ -710,7 +751,7 @@ function openAddPaymentFromDashboard(apartmentId, month) {
       </div>
     </div>
 
-    <button class="btn-primary" onclick="addPayment()">Add</button>
+    <button class="btn-primary" type="button" onclick="addPayment()">Add</button>
   `);
 }
 
@@ -736,8 +777,9 @@ function renderPaymentsTable() {
     <div class="card">
       <div class="card-title">
         <h3>Add Payments</h3>
-        <button onclick="openAddPaymentModal()">Add New Record</button>
+        <button class="btn-primary" type="button" onclick="openAddPaymentModal()">Add New Record</button>
       </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -752,7 +794,7 @@ function renderPaymentsTable() {
               <th>Total Paid</th>
               <th>Pending Dues</th>
               <th>Status</th>
-              <th>Action</th>
+              <th style="min-width: 120px;">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -769,7 +811,7 @@ function renderPaymentsTable() {
                 <td>${formatNumber(r.pending_dues)}</td>
                 <td>${r.status}</td>
                 <td>
-                  <button onclick="openAddPaymentFromDashboard('${r.apartment_id}', '${r.counter_month}')">Pay</button>
+                  <button type="button" onclick="openAddPaymentFromDashboard('${r.apartment_id}', '${r.counter_month}')">Pay</button>
                 </td>
               </tr>
             `).join("")}
@@ -780,6 +822,10 @@ function renderPaymentsTable() {
   `;
 }
 
+/* =========================
+   User views
+========================= */
+
 function renderUserDashboard() {
   const rows = getDetailedDashboardRows().filter(
     r => r.apartment_id === currentUser.apartment_id
@@ -787,7 +833,10 @@ function renderUserDashboard() {
 
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
-      <div class="card-title"><h3>My Dashboard</h3></div>
+      <div class="card-title">
+        <h3>My Dashboard</h3>
+      </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -831,7 +880,10 @@ function renderUserPaymentHistory() {
 
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
-      <div class="card-title"><h3>My Payment History</h3></div>
+      <div class="card-title">
+        <h3>My Payment History</h3>
+      </div>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -860,6 +912,10 @@ function renderUserPaymentHistory() {
   `;
 }
 
+/* =========================
+   Init
+========================= */
+
 function initDashboard() {
   if (!currentUser) {
     window.location.href = "index.html";
@@ -875,8 +931,11 @@ function initDashboard() {
 
   renderSidebar();
 
-  if (currentUser.owner_role === "Admin") renderAdminOverview();
-  else renderUserDashboard();
+  if (currentUser.owner_role === "Admin") {
+    renderAdminOverview();
+  } else {
+    renderUserDashboard();
+  }
 }
 
 initDashboard();
