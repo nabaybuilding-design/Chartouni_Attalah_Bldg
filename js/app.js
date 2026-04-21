@@ -337,6 +337,9 @@ function renderSidebar() {
       <button class="menu-btn" type="button" onclick="renderWaterMeterTable()">Add WaterMeter</button>
       <button class="menu-btn" type="button" onclick="renderMonthlyBillsTable()">Add MonthlyBills</button>
       <button class="menu-btn" type="button" onclick="renderPaymentsTable()">Add Payments</button>
+      
+      <!-- ADD THIS LINE -->
+      <button class="menu-btn" type="button" onclick="renderOtherDebtsTable()">Other Debts</button>
     `;
   } else {
     sidebar.innerHTML = `
