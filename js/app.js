@@ -80,16 +80,36 @@ function getDetailedDashboardRows() {
     const fixBill = Number(monthBill.fix_bill || 0);
     const totalDue = waterFees + fixBill;
 
-    const totalPaid = db.payments
-      .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) === monthKey)
-      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-
-    let status = "Overdue";
-    if (totalPaid >= totalDue && totalDue > 0) {
-      status = "Paid";
-    } else if (totalPaid > 0 && totalPaid < totalDue) {
-      status = "Partial";
-    }
+    const cumulativeDue = db.waterMeter
+    .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) <= monthKey)
+    .reduce((sum, x) => {
+      const xMonthKey = getMonthKey(x.counter_month);
+      const xMonthBill = db.monthlyBills.find(b => getMonthKey(b.month) === xMonthKey) || {
+        water_bill: 0,
+        fix_bill: 0
+      };
+  
+      const xWaterFees = calculateWaterFees(x);
+      const xFixBill = Number(xMonthBill.fix_bill || 0);
+  
+      return sum + xWaterFees + xFixBill;
+    }, 0);
+  
+  const cumulativePaid = db.payments
+    .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) <= monthKey)
+    .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+  
+  const totalPaid = cumulativePaid;
+  const balance = cumulativePaid - cumulativeDue;
+  
+  let status = "Overdue";
+  if (balance > 0) {
+    status = "Advance";
+  } else if (balance === 0 && cumulativeDue > 0) {
+    status = "Paid";
+  } else if (cumulativePaid > 0 && balance < 0) {
+    status = "Partial";
+  }
 
     return {
       id: wm.id,
