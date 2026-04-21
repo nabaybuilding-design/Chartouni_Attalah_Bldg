@@ -216,7 +216,15 @@ function getCombinedDashboardRows() {
       grouped[row.apartment_id].pending_dues = Number(row.pending_dues || 0);
       grouped[row.apartment_id].advance_credit = Number(row.advance_credit || 0);
       grouped[row.apartment_id].applied_credit = 0;
-      grouped[row.apartment_id].status = row.status;
+      if (Number(row.advance_credit || 0) > 0) {
+        grouped[row.apartment_id].status = "Advance";
+      } else if (Number(row.pending_dues || 0) === 0 && Number(row.total_paid || 0) > 0) {
+        grouped[row.apartment_id].status = "Paid";
+      } else if (Number(row.total_paid || 0) > 0 && Number(row.pending_dues || 0) > 0) {
+        grouped[row.apartment_id].status = "Partial";
+      } else {
+        grouped[row.apartment_id].status = "Overdue";
+      }
     }
   });
 
