@@ -85,6 +85,31 @@ function getDetailedDashboardRows() {
       .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) <= monthKey)
       .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
 
+    const previousPaid = db.payments
+      .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) < monthKey)
+      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+    
+    const previousDue = db.waterMeter
+      .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) < monthKey)
+      .sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month))
+      .reduce((sum, x) => {
+        const xMonthKey = getMonthKey(x.counter_month);
+        const xMonthBill = db.monthlyBills.find(b => getMonthKey(b.month) === xMonthKey) || {
+          water_bill: 0,
+          fix_bill: 0
+        };
+    
+        const xWaterFees = calculateWaterFees(x);
+        const xFixBill = Number(xMonthBill.fix_bill || 0);
+        const xRawDue = xWaterFees + xFixBill;
+    
+        const oldCredit = Math.max(0, previousPaid - sum);
+        const effectiveDue = Math.max(0, xRawDue - oldCredit);
+    
+        return sum + effectiveDue;
+      }, 0);
+    
+    
     const cumulativeDue = db.waterMeter
       .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) <= monthKey)
       .sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month))
@@ -114,7 +139,7 @@ function getDetailedDashboardRows() {
         return sum + effectiveDue;
       }, 0);
 
-    const previousBalance = cumulativePaid - (cumulativeDue - raw_due);
+    const previousBalance = previousPaid - previousDue;
     const applied_credit = previousBalance > 0 ? Math.min(previousBalance, raw_due) : 0;
     const totalDue = raw_due - applied_credit;
 
