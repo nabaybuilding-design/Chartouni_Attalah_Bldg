@@ -126,16 +126,16 @@ function getDetailedDashboardRows() {
 
         const prevDue = sum;
         const prevPaid = db.payments
-          .filter(p => p.apartment_id === x.apartment_id && getMonthKey(p.month) <= xMonthKey)
+          .filter(p => p.apartment_id === x.apartment_id && getMonthKey(p.month) < xMonthKey)
           .reduce((s, p) => s + Number(p.amount_paid || 0), 0);
-
+        
         const prevBalance = prevPaid - prevDue;
-
+        
         let effectiveDue = xRawDue;
         if (prevBalance > 0) {
           effectiveDue = Math.max(0, xRawDue - prevBalance);
         }
-
+        
         return sum + effectiveDue;
       }, 0);
 
