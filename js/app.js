@@ -12,7 +12,7 @@ function getMonthKey(dateValue) {
 }
 
 function formatNumber(value) {
-  return Number(value || 0).toFixed(2);
+  return Math.round(Number(value || 0));
 }
 
 function savePDF() {
