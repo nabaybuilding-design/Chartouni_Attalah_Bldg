@@ -2,7 +2,8 @@ let db = {
   apartments: [],
   waterMeter: [],
   monthlyBills: [],
-  payments: []
+  payments: [],
+  otherDebts: []
 };
 
 let currentUser = null;
@@ -219,23 +220,26 @@ function closeModal() {
 }
 
 async function fetchAllData() {
-  const [apartmentsRes, waterRes, billsRes, paymentsRes] = await Promise.all([
+  const [apartmentsRes, waterRes, billsRes, paymentsRes, otherDebtsRes] = await Promise.all([
     window.supabaseClient.from("apartments").select("*").order("id", { ascending: true }),
     window.supabaseClient.from("water_meter").select("*").order("id", { ascending: true }),
     window.supabaseClient.from("monthly_bills").select("*").order("id", { ascending: true }),
-    window.supabaseClient.from("payments").select("*").order("id", { ascending: true })
+    window.supabaseClient.from("payments").select("*").order("id", { ascending: true }),
+    window.supabaseClient.from("other_debts").select("*").order("id", { ascending: true })
   ]);
 
   if (apartmentsRes.error) throw apartmentsRes.error;
   if (waterRes.error) throw waterRes.error;
   if (billsRes.error) throw billsRes.error;
   if (paymentsRes.error) throw paymentsRes.error;
+  if (otherDebtsRes.error) throw otherDebtsRes.error;
 
   db = {
     apartments: apartmentsRes.data || [],
     waterMeter: waterRes.data || [],
     monthlyBills: billsRes.data || [],
-    payments: paymentsRes.data || []
+    payments: paymentsRes.data || [],
+    otherDebts: otherDebtsRes.data || []
   };
 }
 
@@ -293,7 +297,35 @@ async function deleteRow(tableName, id) {
   if (tableName === "waterMeter") renderWaterMeterTable();
   if (tableName === "monthlyBills") renderMonthlyBillsTable();
 }
+  
+function getBuildingCaisseSummary() {
+  const totalCredits = db.payments.reduce(
+    (sum, row) => sum + Number(row.amount_paid || 0),
+    0
+  );
 
+  const automaticDebts = db.monthlyBills.reduce(
+    (sum, row) => sum + Number(row.water_bill || 0),
+    0
+  );
+
+  const manualDebts = db.otherDebts.reduce(
+    (sum, row) => sum + Number(row.amount || 0),
+    0
+  );
+
+  const totalDebts = automaticDebts + manualDebts;
+  const buildingBalance = totalCredits - totalDebts;
+
+  return {
+    totalCredits,
+    automaticDebts,
+    manualDebts,
+    totalDebts,
+    buildingBalance
+  };
+}
+  
 function renderSidebar() {
   const sidebar = document.getElementById("sidebar");
 
@@ -323,6 +355,7 @@ function renderAdminOverview() {
   const totalPending = rows.reduce((s, r) => s + Number(r.pending_dues || 0), 0);
   const totalAdvance = rows.reduce((s, r) => s + Number(r.advance_credit || 0), 0);
   const buildingCaisse = db.payments.reduce((s, p) => s + Number(p.amount_paid || 0), 0);
+  const caisse = getBuildingCaisseSummary();
 
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
@@ -333,6 +366,10 @@ function renderAdminOverview() {
       <div class="summary-box">Outstanding Dues<strong>${formatNumber(totalPending)}</strong></div>
       <div class="summary-box">Advance Credits<strong>${formatNumber(totalAdvance)}</strong></div>
       <div class="summary-box">Building Caisse<strong>${formatNumber(buildingCaisse)}</strong></div>
+      <div class="summary-box">Building Credits<strong>${formatNumber(caisse.totalCredits)}</strong></div>
+      <div class="summary-box">Water Debts<strong>${formatNumber(caisse.automaticDebts)}</strong></div>
+      <div class="summary-box">Other Debts<strong>${formatNumber(caisse.manualDebts)}</strong></div>
+      <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
     </div>
 
     <div class="card">
@@ -835,8 +872,13 @@ function renderUserDashboard() {
   const rows = getCombinedDashboardRows().filter(
     r => r.apartment_id === currentUser.apartment_id
   );
-
+  const caisse = getBuildingCaisseSummary();
+  
   document.getElementById("mainContent").innerHTML = `
+    <div class="summary-boxes">
+      <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
+    </div>
+  
     <div class="card">
       <div class="card-title">
         <h3>My Overview</h3>
