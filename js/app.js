@@ -20,17 +20,6 @@ function savePDF() {
   window.print();
 }
 
-function getFilteredDetailedRows() {
-  const statusFilter = document.getElementById("paymentsStatusFilter")?.value || "";
-  let rows = getDetailedDashboardRows();
-
-  if (statusFilter) {
-    rows = rows.filter(r => r.status === statusFilter);
-  }
-
-  return rows;
-}
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -45,6 +34,17 @@ function apartmentOptions(selectedValue = "") {
       ${a.apartment_id}
     </option>
   `).join("");
+}
+
+function getFilteredDetailedRows() {
+  const statusFilter = document.getElementById("paymentsStatusFilter")?.value || "";
+  let rows = getDetailedDashboardRows();
+
+  if (statusFilter) {
+    rows = rows.filter(r => r.status === statusFilter);
+  }
+
+  return rows;
 }
 
 function calculateWaterFees(wm) {
@@ -68,7 +68,7 @@ function calculateWaterFees(wm) {
 }
 
 function getDetailedDashboardRows() {
-  return db.waterMeter.map(wm => {
+  const rows = db.waterMeter.map(wm => {
     const apartment = db.apartments.find(a => a.apartment_id === wm.apartment_id) || {};
     const monthKey = getMonthKey(wm.counter_month);
     const usage = Number(wm.new_counter || 0) - Number(wm.previous_counter || 0);
@@ -81,65 +81,59 @@ function getDetailedDashboardRows() {
     const fixBill = Number(monthBill.fix_bill || 0);
     const raw_due = waterFees + fixBill;
 
-    // previous balance BEFORE this month
-    const previousBalance = cumulativePaid - (cumulativeDue - raw_due);
-    
-    // credit applied from previous overpayment
-    const applied_credit = previousBalance > 0 ? Math.min(previousBalance, raw_due) : 0;
-    
-    // effective due after applying old credit
-    const totalDue = raw_due - applied_credit;
+    const cumulativePaid = db.payments
+      .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) <= monthKey)
+      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
 
     const cumulativeDue = db.waterMeter
-    .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) <= monthKey)
-    .reduce((sum, x) => {
-      const xMonthKey = getMonthKey(x.counter_month);
-      const xMonthBill = db.monthlyBills.find(b => getMonthKey(b.month) === xMonthKey) || {
-        water_bill: 0,
-        fix_bill: 0
-      };
-  
-      const xWaterFees = calculateWaterFees(x);
-      const xFixBill = Number(xMonthBill.fix_bill || 0);
-  
-      const xRawDue = xWaterFees + xFixBill;
+      .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) <= monthKey)
+      .sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month))
+      .reduce((sum, x) => {
+        const xMonthKey = getMonthKey(x.counter_month);
+        const xMonthBill = db.monthlyBills.find(b => getMonthKey(b.month) === xMonthKey) || {
+          water_bill: 0,
+          fix_bill: 0
+        };
 
-      // previous cumulative before this row
-      const prevDue = sum;
-      const prevPaid = db.payments
-        .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) <= xMonthKey)
-        .reduce((s, p) => s + Number(p.amount_paid || 0), 0);
-      
-      const prevBalance = prevPaid - prevDue;
-      
-      let effectiveDue = xRawDue;
-      
-      if (prevBalance > 0) {
-        effectiveDue = Math.max(0, xRawDue - prevBalance);
-      }
-      
-      return sum + effectiveDue;
-    }, 0);
-  
-  const cumulativePaid = db.payments
-    .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) <= monthKey)
-    .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-  
-  const totalPaid = cumulativePaid;
-  const balance = cumulativePaid - cumulativeDue;
-  const pending_dues = balance < 0 ? Math.abs(balance) : 0;
-  const advance_credit = balance > 0 ? balance : 0;
-  let status = "Overdue";
+        const xWaterFees = calculateWaterFees(x);
+        const xFixBill = Number(xMonthBill.fix_bill || 0);
+        const xRawDue = xWaterFees + xFixBill;
 
-  if ((balance > 0) || (advance_credit > 0)) {
-    status = "Advance";
-  } else if ((pending_dues === 0) && (advance_credit === 0) && (total_paid > 0 || total_due === 0)) {
-    status = "Paid";
-  } else if ((total_paid > 0) && (pending_dues > 0)) {
-    status = "Partial";
-  } else if ((total_paid === 0) && (pending_dues > 0)) {
-    status = "Overdue";
-  }
+        const prevDue = sum;
+        const prevPaid = db.payments
+          .filter(p => p.apartment_id === x.apartment_id && getMonthKey(p.month) <= xMonthKey)
+          .reduce((s, p) => s + Number(p.amount_paid || 0), 0);
+
+        const prevBalance = prevPaid - prevDue;
+
+        let effectiveDue = xRawDue;
+        if (prevBalance > 0) {
+          effectiveDue = Math.max(0, xRawDue - prevBalance);
+        }
+
+        return sum + effectiveDue;
+      }, 0);
+
+    const previousBalance = cumulativePaid - (cumulativeDue - raw_due);
+    const applied_credit = previousBalance > 0 ? Math.min(previousBalance, raw_due) : 0;
+    const totalDue = raw_due - applied_credit;
+
+    const totalPaid = cumulativePaid;
+    const balance = cumulativePaid - cumulativeDue;
+    const pending_dues = balance < 0 ? Math.abs(balance) : 0;
+    const advance_credit = balance > 0 ? balance : 0;
+
+    let status = "Overdue";
+    if ((balance > 0) || (advance_credit > 0)) {
+      status = "Advance";
+    } else if ((pending_dues === 0) && (advance_credit === 0) && (totalPaid > 0 || totalDue === 0)) {
+      status = "Paid";
+    } else if ((totalPaid > 0) && (pending_dues > 0)) {
+      status = "Partial";
+    } else if ((totalPaid === 0) && (pending_dues > 0)) {
+      status = "Overdue";
+    }
+
     return {
       id: wm.id,
       apartment_id: wm.apartment_id,
@@ -148,25 +142,27 @@ function getDetailedDashboardRows() {
       usage,
       water_fees: waterFees,
       fix_bill: fixBill,
-      raw_due: raw_due,
-      applied_credit: applied_credit,
+      raw_due,
+      applied_credit,
       total_due: totalDue,
       total_paid: totalPaid,
-      balance: balance,
-      pending_dues: pending_dues,
-      advance_credit: advance_credit,
+      balance,
+      pending_dues,
+      advance_credit,
       status
     };
   });
+
+  return rows.sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month));
 }
 
 function getCombinedDashboardRows() {
   const grouped = {};
   const detailedRows = getDetailedDashboardRows();
-  
+
   detailedRows.forEach(row => {
     if (!grouped[row.apartment_id]) {
-       grouped[row.apartment_id] = {
+      grouped[row.apartment_id] = {
         apartment_id: row.apartment_id,
         owner_name: row.owner_name,
         total_usage: 0,
@@ -178,34 +174,63 @@ function getCombinedDashboardRows() {
         total_paid: 0,
         pending_dues: 0,
         advance_credit: 0,
-        status: "Overdue",
-        last_month: row.counter_month,
-        last_status: row.status
+        status: row.status,
+        last_month: row.counter_month
       };
     }
 
-    grouped[row.apartment_id].total_usage += row.usage;
-    grouped[row.apartment_id].total_water_fees += row.water_fees;
-    grouped[row.apartment_id].total_fix_bill += row.fix_bill;
-    grouped[row.apartment_id].raw_due += row.raw_due || 0;
-    grouped[row.apartment_id].applied_credit += row.applied_credit || 0;
-    grouped[row.apartment_id].total_due += row.total_due;
-   
+    grouped[row.apartment_id].total_usage += Number(row.usage || 0);
+    grouped[row.apartment_id].total_water_fees += Number(row.water_fees || 0);
+    grouped[row.apartment_id].total_fix_bill += Number(row.fix_bill || 0);
+    grouped[row.apartment_id].raw_due += Number(row.raw_due || 0);
+    grouped[row.apartment_id].applied_credit += Number(row.applied_credit || 0);
+    grouped[row.apartment_id].total_due += Number(row.total_due || 0);
+
     if (new Date(row.counter_month) >= new Date(grouped[row.apartment_id].last_month)) {
       grouped[row.apartment_id].last_month = row.counter_month;
-      grouped[row.apartment_id].total_paid = row.total_paid;
-      grouped[row.apartment_id].pending_dues = row.pending_dues;
-      grouped[row.apartment_id].advance_credit = row.advance_credit || 0;
-      grouped[row.apartment_id].last_status = row.status;
+      grouped[row.apartment_id].total_paid = Number(row.total_paid || 0);
+      grouped[row.apartment_id].pending_dues = Number(row.pending_dues || 0);
+      grouped[row.apartment_id].advance_credit = Number(row.advance_credit || 0);
       grouped[row.apartment_id].status = row.status;
     }
-  Object.values(grouped).forEach(item => {
-    delete item.last_month;
-    delete item.last_status;
   });
-  return Object.values(grouped).sort((a, b) =>
+
+  const result = Object.values(grouped).map(item => {
+    delete item.last_month;
+    return item;
+  });
+
+  return result.sort((a, b) =>
     String(a.apartment_id).localeCompare(String(b.apartment_id), undefined, { numeric: true, sensitivity: "base" })
   );
+}
+
+function getBuildingCaisseSummary() {
+  const totalCredits = db.payments.reduce(
+    (sum, row) => sum + Number(row.amount_paid || 0),
+    0
+  );
+
+  const automaticDebts = db.monthlyBills.reduce(
+    (sum, row) => sum + Number(row.water_bill || 0),
+    0
+  );
+
+  const manualDebts = db.otherDebts.reduce(
+    (sum, row) => sum + Number(row.amount || 0),
+    0
+  );
+
+  const totalDebts = automaticDebts + manualDebts;
+  const buildingBalance = totalCredits - totalDebts;
+
+  return {
+    totalCredits,
+    automaticDebts,
+    manualDebts,
+    totalDebts,
+    buildingBalance
+  };
 }
 
 function openModal(title, bodyHTML) {
@@ -297,35 +322,7 @@ async function deleteRow(tableName, id) {
   if (tableName === "waterMeter") renderWaterMeterTable();
   if (tableName === "monthlyBills") renderMonthlyBillsTable();
 }
-  
-function getBuildingCaisseSummary() {
-  const totalCredits = db.payments.reduce(
-    (sum, row) => sum + Number(row.amount_paid || 0),
-    0
-  );
 
-  const automaticDebts = db.monthlyBills.reduce(
-    (sum, row) => sum + Number(row.water_bill || 0),
-    0
-  );
-
-  const manualDebts = db.otherDebts.reduce(
-    (sum, row) => sum + Number(row.amount || 0),
-    0
-  );
-
-  const totalDebts = automaticDebts + manualDebts;
-  const buildingBalance = totalCredits - totalDebts;
-
-  return {
-    totalCredits,
-    automaticDebts,
-    manualDebts,
-    totalDebts,
-    buildingBalance
-  };
-}
-  
 function renderSidebar() {
   const sidebar = document.getElementById("sidebar");
 
@@ -337,8 +334,6 @@ function renderSidebar() {
       <button class="menu-btn" type="button" onclick="renderWaterMeterTable()">Add WaterMeter</button>
       <button class="menu-btn" type="button" onclick="renderMonthlyBillsTable()">Add MonthlyBills</button>
       <button class="menu-btn" type="button" onclick="renderPaymentsTable()">Add Payments</button>
-      
-      <!-- ADD THIS LINE -->
       <button class="menu-btn" type="button" onclick="renderOtherDebtsTable()">Other Debts</button>
     `;
   } else {
@@ -352,12 +347,11 @@ function renderSidebar() {
 
 function renderAdminOverview() {
   const rows = getCombinedDashboardRows();
-  const totalDue = rows.reduce((s, r) => s + r.total_due, 0);
-  const totalPaid = rows.reduce((s, r) => s + r.total_paid, 0);
-  const totalRemaining = rows.reduce((s, r) => s + (r.total_paid - r.total_due), 0);
+  const totalDue = rows.reduce((s, r) => s + Number(r.total_due || 0), 0);
+  const totalPaid = rows.reduce((s, r) => s + Number(r.total_paid || 0), 0);
+  const totalRemaining = rows.reduce((s, r) => s + (Number(r.total_paid || 0) - Number(r.total_due || 0)), 0);
   const totalPending = rows.reduce((s, r) => s + Number(r.pending_dues || 0), 0);
   const totalAdvance = rows.reduce((s, r) => s + Number(r.advance_credit || 0), 0);
-  const buildingCaisse = db.payments.reduce((s, p) => s + Number(p.amount_paid || 0), 0);
   const caisse = getBuildingCaisseSummary();
 
   document.getElementById("mainContent").innerHTML = `
@@ -368,7 +362,6 @@ function renderAdminOverview() {
       <div class="summary-box">Net Balance<strong>${formatNumber(totalRemaining)}</strong></div>
       <div class="summary-box">Outstanding Dues<strong>${formatNumber(totalPending)}</strong></div>
       <div class="summary-box">Advance Credits<strong>${formatNumber(totalAdvance)}</strong></div>
-      <div class="summary-box">Building Caisse<strong>${formatNumber(buildingCaisse)}</strong></div>
       <div class="summary-box">Building Credits<strong>${formatNumber(caisse.totalCredits)}</strong></div>
       <div class="summary-box">Water Debts<strong>${formatNumber(caisse.automaticDebts)}</strong></div>
       <div class="summary-box">Other Debts<strong>${formatNumber(caisse.manualDebts)}</strong></div>
@@ -818,6 +811,7 @@ function renderPaymentsTable() {
             <option value="Paid">Paid</option>
             <option value="Partial">Partial</option>
             <option value="Overdue">Overdue</option>
+            <option value="Advance">Advance</option>
           </select>
           <button class="btn-primary" type="button" onclick="openAddPaymentModal()">Add New Record</button>
         </div>
@@ -876,12 +870,12 @@ function renderUserDashboard() {
     r => r.apartment_id === currentUser.apartment_id
   );
   const caisse = getBuildingCaisseSummary();
-  
+
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
       <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
     </div>
-  
+
     <div class="card">
       <div class="card-title">
         <h3>My Overview</h3>
@@ -966,6 +960,143 @@ function renderUserPaymentHistory() {
   `;
 }
 
+/* =========================
+   Other Debts
+========================= */
+
+function renderOtherDebtsTable() {
+  const rows = db.otherDebts || [];
+
+  document.getElementById("mainContent").innerHTML = `
+    <div class="card">
+      <div class="card-title">
+        <h3>Other Debts</h3>
+        <button class="btn-primary" type="button" onclick="openAddOtherDebtModal()">Add New Record</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Label</th>
+              <th>Amount</th>
+              <th>Notes</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td><input type="date" value="${escapeHtml(r.debt_date || "")}" onchange="updateOtherDebt(${r.id}, 'debt_date', this.value)"></td>
+                <td><input type="text" value="${escapeHtml(r.label || "")}" onchange="updateOtherDebt(${r.id}, 'label', this.value)"></td>
+                <td><input type="number" value="${escapeHtml(r.amount || 0)}" onchange="updateOtherDebt(${r.id}, 'amount', this.value)"></td>
+                <td><input type="text" value="${escapeHtml(r.notes || "")}" onchange="updateOtherDebt(${r.id}, 'notes', this.value)"></td>
+                <td>
+                  <button type="button" onclick="saveOtherDebt(${r.id})">Save</button>
+                  <button type="button" class="btn-danger" onclick="deleteOtherDebt(${r.id})">Del</button>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function updateOtherDebt(id, field, value) {
+  const row = db.otherDebts.find(r => r.id === id);
+  if (row) {
+    row[field] = field === "amount" ? Number(value || 0) : value;
+  }
+}
+
+function openAddOtherDebtModal() {
+  openModal("Add Other Debt", `
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Date</label>
+        <input id="other_debt_date" type="date">
+      </div>
+      <div class="form-group">
+        <label>Label</label>
+        <input id="other_debt_label" type="text">
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <input id="other_debt_amount" type="number">
+      </div>
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>Notes</label>
+        <textarea id="other_debt_notes"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-primary" type="button" onclick="insertOtherDebt()">Add</button>
+  `);
+}
+
+async function insertOtherDebt() {
+  const payload = {
+    debt_date: document.getElementById("other_debt_date").value,
+    label: document.getElementById("other_debt_label").value,
+    amount: Number(document.getElementById("other_debt_amount").value || 0),
+    notes: document.getElementById("other_debt_notes").value
+  };
+
+  const { error } = await window.supabaseClient
+    .from("other_debts")
+    .insert([payload]);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  await fetchAllData();
+  closeModal();
+  renderOtherDebtsTable();
+}
+
+async function saveOtherDebt(id) {
+  const row = db.otherDebts.find(r => r.id === id);
+  if (!row) return;
+
+  const { error } = await window.supabaseClient
+    .from("other_debts")
+    .update({
+      debt_date: row.debt_date,
+      label: row.label,
+      amount: Number(row.amount || 0),
+      notes: row.notes
+    })
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  await fetchAllData();
+  renderOtherDebtsTable();
+}
+
+async function deleteOtherDebt(id) {
+  const { error } = await window.supabaseClient
+    .from("other_debts")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  await fetchAllData();
+  renderOtherDebtsTable();
+}
+
 async function initDashboard() {
   try {
     if (!window.APP_CONFIG.useSupabase || !window.supabaseClient) {
@@ -999,24 +1130,7 @@ async function initDashboard() {
 
     currentUser = apartmentRow;
 
-    const [apartmentsRes, waterRes, billsRes, paymentsRes] = await Promise.all([
-      window.supabaseClient.from("apartments").select("*").order("id", { ascending: true }),
-      window.supabaseClient.from("water_meter").select("*").order("id", { ascending: true }),
-      window.supabaseClient.from("monthly_bills").select("*").order("id", { ascending: true }),
-      window.supabaseClient.from("payments").select("*").order("id", { ascending: true })
-    ]);
-
-    if (apartmentsRes.error) throw new Error("apartments: " + apartmentsRes.error.message);
-    if (waterRes.error) throw new Error("water_meter: " + waterRes.error.message);
-    if (billsRes.error) throw new Error("monthly_bills: " + billsRes.error.message);
-    if (paymentsRes.error) throw new Error("payments: " + paymentsRes.error.message);
-
-    db = {
-      apartments: apartmentsRes.data || [],
-      waterMeter: waterRes.data || [],
-      monthlyBills: billsRes.data || [],
-      payments: paymentsRes.data || []
-    };
+    await fetchAllData();
 
     document.getElementById("app").classList.remove("hidden");
     document.getElementById("loggedInUserText").textContent = currentUser.owner_email;
