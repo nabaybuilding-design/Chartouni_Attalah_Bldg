@@ -245,31 +245,27 @@ function getCombinedDashboardRows() {
   );
 }
 
-function getBuildingCaisseSummary() {
-  const totalCredits = db.payments.reduce(
-    (sum, row) => sum + Number(row.amount_paid || 0),
-    0
-  );
+async function getBuildingCaisseSummary() {
+  const { data, error } = await window.supabaseClient.rpc("get_building_caisse_summary");
 
-  const automaticDebts = db.monthlyBills.reduce(
-    (sum, row) => sum + Number(row.water_bill || 0),
-    0
-  );
+  if (error) {
+    throw error;
+  }
 
-  const manualDebts = db.otherDebts.reduce(
-    (sum, row) => sum + Number(row.amount || 0),
-    0
-  );
-
-  const totalDebts = automaticDebts + manualDebts;
-  const buildingBalance = totalCredits - totalDebts;
+  const row = data && data[0] ? data[0] : {
+    total_credits: 0,
+    water_debts: 0,
+    other_debts: 0,
+    total_debts: 0,
+    building_balance: 0
+  };
 
   return {
-    totalCredits,
-    automaticDebts,
-    manualDebts,
-    totalDebts,
-    buildingBalance
+    totalCredits: Number(row.total_credits || 0),
+    automaticDebts: Number(row.water_debts || 0),
+    manualDebts: Number(row.other_debts || 0),
+    totalDebts: Number(row.total_debts || 0),
+    buildingBalance: Number(row.building_balance || 0)
   };
 }
 
@@ -385,14 +381,14 @@ function renderSidebar() {
   }
 }
 
-function renderAdminOverview() {
+async function renderAdminOverview() {
   const rows = getCombinedDashboardRows();
   const totalDue = rows.reduce((s, r) => s + Number(r.total_due || 0), 0);
   const totalPaid = rows.reduce((s, r) => s + Number(r.total_paid || 0), 0);
   const totalRemaining = rows.reduce((s, r) => s + (Number(r.total_paid || 0) - Number(r.total_due || 0)), 0);
   const totalPending = rows.reduce((s, r) => s + Number(r.pending_dues || 0), 0);
   const totalAdvance = rows.reduce((s, r) => s + Number(r.advance_credit || 0), 0);
-  const caisse = getBuildingCaisseSummary();
+  const caisse = await getBuildingCaisseSummary();
 
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
@@ -905,11 +901,11 @@ function renderPaymentsTable() {
   `;
 }
 
-function renderUserDashboard() {
+async function renderUserDashboard() {
   const rows = getCombinedDashboardRows().filter(
     r => r.apartment_id === currentUser.apartment_id
   );
-  const caisse = getBuildingCaisseSummary();
+  const caisse = await getBuildingCaisseSummary();
 
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
@@ -1186,9 +1182,9 @@ async function initDashboard() {
     renderSidebar();
 
     if (currentUser.owner_role === "Admin") {
-      renderAdminOverview();
+      await renderAdminOverview();
     } else {
-      renderUserDashboard();
+      await renderUserDashboard();
     }
 
   } catch (err) {
