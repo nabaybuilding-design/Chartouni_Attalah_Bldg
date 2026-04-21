@@ -220,11 +220,15 @@ function getCombinedDashboardRows() {
   });
 
   Object.values(grouped).forEach(item => {
-    if (Number(item.advance_credit || 0) > 0) {
+    const advance = Math.round(Number(item.advance_credit || 0));
+    const pending = Math.round(Number(item.pending_dues || 0));
+    const paid = Math.round(Number(item.total_paid || 0));
+  
+    if (advance > 0) {
       item.status = "Advance";
-    } else if (Number(item.pending_dues || 0) === 0 && Number(item.total_paid || 0) > 0) {
+    } else if (pending === 0 && paid > 0) {
       item.status = "Paid";
-    } else if (Number(item.total_paid || 0) > 0 && Number(item.pending_dues || 0) > 0) {
+    } else if (paid > 0 && pending > 0) {
       item.status = "Partial";
     } else {
       item.status = "Overdue";
