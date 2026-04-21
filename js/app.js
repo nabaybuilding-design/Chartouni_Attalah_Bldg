@@ -78,17 +78,16 @@ function getDetailedDashboardRows() {
 
     const waterFees = calculateWaterFees(wm);
     const fixBill = Number(monthBill.fix_bill || 0);
-    const rawDue = waterFees + fixBill;
+    const raw_due = waterFees + fixBill;
 
     // previous balance BEFORE this month
-    const previousBalance = cumulativePaid - (cumulativeDue - rawDue);
+    const previousBalance = cumulativePaid - (cumulativeDue - raw_due);
     
-    // apply credit if any
-    let totalDue = rawDue;
+    // credit applied from previous overpayment
+    const applied_credit = previousBalance > 0 ? Math.min(previousBalance, raw_due) : 0;
     
-    if (previousBalance > 0) {
-      totalDue = Math.max(0, rawDue - previousBalance);
-    }
+    // effective due after applying old credit
+    const totalDue = raw_due - applied_credit;
 
     const cumulativeDue = db.waterMeter
     .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) <= monthKey)
@@ -127,18 +126,19 @@ function getDetailedDashboardRows() {
   
   const totalPaid = cumulativePaid;
   const balance = cumulativePaid - cumulativeDue;
-  
+  const pending_dues = balance < 0 ? Math.abs(balance) : 0;
+  const advance_credit = balance > 0 ? balance : 0;
   let status = "Overdue";
-  if (balance > 0) {
+
+  if ((balance > 0) || (advance_credit > 0)) {
     status = "Advance";
-  } else if (balance === 0 && cumulativeDue > 0) {
+  } else if ((pending_dues === 0) && (advance_credit === 0) && (total_paid > 0 || total_due === 0)) {
     status = "Paid";
-  } else if (cumulativePaid > 0 && balance < 0) {
+  } else if ((total_paid > 0) && (pending_dues > 0)) {
     status = "Partial";
-  } else if (cumulativePaid === 0 && cumulativeDue > 0) {
+  } else if ((total_paid === 0) && (pending_dues > 0)) {
     status = "Overdue";
   }
-
     return {
       id: wm.id,
       apartment_id: wm.apartment_id,
@@ -147,12 +147,13 @@ function getDetailedDashboardRows() {
       usage,
       water_fees: waterFees,
       fix_bill: fixBill,
+      raw_due: raw_due,
+      applied_credit: applied_credit,
       total_due: totalDue,
       total_paid: totalPaid,
-      current_due: totalDue,
-      pending_dues: balance < 0 ? Math.abs(balance) : 0,
-      advance_credit: balance > 0 ? balance : 0,
       balance: balance,
+      pending_dues: pending_dues,
+      advance_credit: advance_credit,
       status
     };
   });
@@ -160,41 +161,50 @@ function getDetailedDashboardRows() {
 
 function getCombinedDashboardRows() {
   const grouped = {};
-
-  getDetailedDashboardRows().forEach(row => {
+  const detailedRows = getDetailedDashboardRows();
+  
+  detailedRows.forEach(row => {
     if (!grouped[row.apartment_id]) {
-      grouped[row.apartment_id] = {
+       grouped[row.apartment_id] = {
         apartment_id: row.apartment_id,
         owner_name: row.owner_name,
         total_usage: 0,
         total_water_fees: 0,
         total_fix_bill: 0,
+        raw_due: 0,
+        applied_credit: 0,
         total_due: 0,
         total_paid: 0,
         pending_dues: 0,
-        status: "Overdue"
+        advance_credit: 0,
+        status: "Overdue",
+        last_month: row.counter_month,
+        last_status: row.status
       };
     }
 
     grouped[row.apartment_id].total_usage += row.usage;
-    grouped[row.apartment_id].total_water_fees += Number(row.water_fees || 0);
+    grouped[row.apartment_id].total_water_fees += row.water_fees;
     grouped[row.apartment_id].total_fix_bill += row.fix_bill;
+    grouped[row.apartment_id].raw_due += row.raw_due || 0;
+    grouped[row.apartment_id].applied_credit += row.applied_credit || 0;
     grouped[row.apartment_id].total_due += row.total_due;
-    grouped[row.apartment_id].total_paid += row.total_paid;
-    grouped[row.apartment_id].pending_dues += row.pending_dues;
-  });
-
-  Object.values(grouped).forEach(item => {
-    if (item.total_paid >= item.total_due && item.total_due > 0) {
-      item.status = "Paid";
-    } else if (item.total_paid > 0 && item.total_paid < item.total_due) {
-      item.status = "Partial";
-    } else {
-      item.status = "Overdue";
+   
+    if (new Date(row.counter_month) >= new Date(grouped[row.apartment_id].last_month)) {
+      grouped[row.apartment_id].last_month = row.counter_month;
+      grouped[row.apartment_id].total_paid = row.total_paid;
+      grouped[row.apartment_id].pending_dues = row.pending_dues;
+      grouped[row.apartment_id].advance_credit = row.advance_credit || 0;
+      grouped[row.apartment_id].last_status = row.status;
+      grouped[row.apartment_id].status = row.status;
     }
+  Object.values(grouped).forEach(item => {
+    delete item.last_month;
+    delete item.last_status;
   });
-
-  return Object.values(grouped);
+  return Object.values(grouped).sort((a, b) =>
+    String(a.apartment_id).localeCompare(String(b.apartment_id), undefined, { numeric: true, sensitivity: "base" })
+  );
 }
 
 function openModal(title, bodyHTML) {
@@ -319,7 +329,7 @@ function renderAdminOverview() {
       <div class="summary-box">Apartments<strong>${db.apartments.length}</strong></div>
       <div class="summary-box">Total Due<strong>${formatNumber(totalDue)}</strong></div>
       <div class="summary-box">Total Paid<strong>${formatNumber(totalPaid)}</strong></div>
-      <div class="summary-box">Remaining Balance<strong>${formatNumber(totalRemaining)}</strong></div>
+      <div class="summary-box">Net Balance<strong>${formatNumber(totalRemaining)}</strong></div>
       <div class="summary-box">Outstanding Dues<strong>${formatNumber(totalPending)}</strong></div>
       <div class="summary-box">Advance Credits<strong>${formatNumber(totalAdvance)}</strong></div>
       <div class="summary-box">Building Caisse<strong>${formatNumber(buildingCaisse)}</strong></div>
@@ -339,7 +349,9 @@ function renderAdminOverview() {
               <th>Total Usage</th>
               <th>Total Water Fees</th>
               <th>Total Fix Bill</th>
-              <th>Total Due</th>
+              <th>Original Due</th>
+              <th>Credit Used</th>
+              <th>Net Due</th>
               <th>Total Paid</th>
               <th>Pending Dues</th>
               <th>Advance Credit</th>
@@ -354,6 +366,8 @@ function renderAdminOverview() {
                 <td>${formatNumber(r.total_usage)}</td>
                 <td>${formatNumber(r.total_water_fees)}</td>
                 <td>${formatNumber(r.total_fix_bill)}</td>
+                <td>${formatNumber(r.raw_due || 0)}</td>
+                <td>${formatNumber(r.applied_credit || 0)}</td>
                 <td>${formatNumber(r.total_due)}</td>
                 <td>${formatNumber(r.total_paid)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
@@ -779,7 +793,9 @@ function renderPaymentsTable() {
               <th>Usage</th>
               <th>Water Fees</th>
               <th>Fix Bill</th>
-              <th>Total Due</th>
+              <th>Original Due</th>
+              <th>Credit Used</th>
+              <th>Net Due</th>
               <th>Total Paid</th>
               <th>Pending Dues</th>
               <th>Advance Credit</th>
@@ -796,6 +812,8 @@ function renderPaymentsTable() {
                 <td>${formatNumber(r.usage)}</td>
                 <td>${formatNumber(r.water_fees)}</td>
                 <td>${formatNumber(r.fix_bill)}</td>
+                <td>${formatNumber(r.raw_due || 0)}</td>
+                <td>${formatNumber(r.applied_credit || 0)}</td>
                 <td>${formatNumber(r.total_due)}</td>
                 <td>${formatNumber(r.total_paid)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
@@ -833,7 +851,9 @@ function renderUserDashboard() {
               <th>Total Usage</th>
               <th>Total Water Fees</th>
               <th>Total Fix Bill</th>
-              <th>Total Due</th>
+              <th>Original Due</th>
+              <th>Credit Used</th>
+              <th>Net Due</th>
               <th>Total Paid</th>
               <th>Pending Dues</th>
               <th>Advance Credit</th>
@@ -848,6 +868,8 @@ function renderUserDashboard() {
                 <td>${formatNumber(r.total_usage)}</td>
                 <td>${formatNumber(r.total_water_fees)}</td>
                 <td>${formatNumber(r.total_fix_bill)}</td>
+                <td>${formatNumber(r.raw_due || 0)}</td>
+                <td>${formatNumber(r.applied_credit || 0)}</td>
                 <td>${formatNumber(r.total_due)}</td>
                 <td>${formatNumber(r.total_paid)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
