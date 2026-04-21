@@ -199,7 +199,7 @@ function getCombinedDashboardRows() {
         total_paid: 0,
         pending_dues: 0,
         advance_credit: 0,
-        status: row.status,
+        status: "Overdue",
         last_month: row.counter_month
       };
     }
@@ -216,15 +216,18 @@ function getCombinedDashboardRows() {
       grouped[row.apartment_id].pending_dues = Number(row.pending_dues || 0);
       grouped[row.apartment_id].advance_credit = Number(row.advance_credit || 0);
       grouped[row.apartment_id].applied_credit = 0;
-      if (Number(row.advance_credit || 0) > 0) {
-        grouped[row.apartment_id].status = "Advance";
-      } else if (Number(row.pending_dues || 0) === 0 && Number(row.total_paid || 0) > 0) {
-        grouped[row.apartment_id].status = "Paid";
-      } else if (Number(row.total_paid || 0) > 0 && Number(row.pending_dues || 0) > 0) {
-        grouped[row.apartment_id].status = "Partial";
-      } else {
-        grouped[row.apartment_id].status = "Overdue";
-      }
+    }
+  });
+
+  Object.values(grouped).forEach(item => {
+    if (Number(item.advance_credit || 0) > 0) {
+      item.status = "Advance";
+    } else if (Number(item.pending_dues || 0) === 0 && Number(item.total_paid || 0) > 0) {
+      item.status = "Paid";
+    } else if (Number(item.total_paid || 0) > 0 && Number(item.pending_dues || 0) > 0) {
+      item.status = "Partial";
+    } else {
+      item.status = "Overdue";
     }
   });
 
