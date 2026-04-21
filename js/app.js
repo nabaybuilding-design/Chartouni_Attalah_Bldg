@@ -148,14 +148,20 @@ function getDetailedDashboardRows() {
     const pending_dues = balance < 0 ? Math.abs(balance) : 0;
     const advance_credit = balance > 0 ? balance : 0;
 
+    const roundedAdvance = Math.round(Number(advance_credit || 0));
+    const roundedPending = Math.round(Number(pending_dues || 0));
+    const roundedPaid = Math.round(Number(totalPaid || 0));
+    const roundedDue = Math.round(Number(totalDue || 0));
+    
     let status = "Overdue";
-    if ((balance > 0) || (advance_credit > 0)) {
+    
+    if (roundedAdvance > 0) {
       status = "Advance";
-    } else if ((pending_dues === 0) && (advance_credit === 0) && (totalPaid > 0 || totalDue === 0)) {
+    } else if (roundedPending === 0 && (roundedPaid > 0 || roundedDue === 0)) {
       status = "Paid";
-    } else if ((totalPaid > 0) && (pending_dues > 0)) {
+    } else if (roundedPaid > 0 && roundedPending > 0) {
       status = "Partial";
-    } else if ((totalPaid === 0) && (pending_dues > 0)) {
+    } else {
       status = "Overdue";
     }
 
