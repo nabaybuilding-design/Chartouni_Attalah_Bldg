@@ -208,14 +208,14 @@ function getCombinedDashboardRows() {
     grouped[row.apartment_id].total_water_fees += Number(row.water_fees || 0);
     grouped[row.apartment_id].total_fix_bill += Number(row.fix_bill || 0);
     grouped[row.apartment_id].raw_due += Number(row.raw_due || 0);
-    grouped[row.apartment_id].applied_credit += Number(row.applied_credit || 0);
-    grouped[row.apartment_id].total_due += Number(row.total_due || 0);
+    grouped[row.apartment_id].total_due += Number(row.raw_due || 0);
 
     if (new Date(row.counter_month) >= new Date(grouped[row.apartment_id].last_month)) {
       grouped[row.apartment_id].last_month = row.counter_month;
       grouped[row.apartment_id].total_paid = Number(row.total_paid || 0);
       grouped[row.apartment_id].pending_dues = Number(row.pending_dues || 0);
       grouped[row.apartment_id].advance_credit = Number(row.advance_credit || 0);
+      grouped[row.apartment_id].applied_credit = 0;
       grouped[row.apartment_id].status = row.status;
     }
   });
