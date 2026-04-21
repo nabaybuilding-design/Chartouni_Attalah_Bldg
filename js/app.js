@@ -121,7 +121,7 @@ function getDetailedDashboardRows() {
       fix_bill: fixBill,
       total_due: totalDue,
       total_paid: totalPaid,
-      pending_dues: totalPaid - totalDue,
+      pending_dues: balance,
       status
     };
   });
