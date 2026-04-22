@@ -68,95 +68,99 @@ function calculateWaterFees(wm) {
 }
 
 function getDetailedDashboardRows() {
-  const rows = db.waterMeter.map(wm => {
-    const apartment = db.apartments.find(a => a.apartment_id === wm.apartment_id) || {};
-    const monthKey = getMonthKey(wm.counter_month);
-    const usage = Number(wm.new_counter || 0) - Number(wm.previous_counter || 0);
+  const groupedByApartment = {};
 
-    const monthBill = db.monthlyBills.find(
-      b => getMonthKey(b.month) === monthKey
-    ) || { water_bill: 0, fix_bill: 0 };
-
-    const waterFees = calculateWaterFees(wm);
-    const fixBill = Number(monthBill.fix_bill || 0);
-    const raw_due = waterFees + fixBill;
-
-    const currentMonthPayment = db.payments
-      .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) === monthKey)
-      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-
-    const previousPaid = db.payments
-      .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) < monthKey)
-      .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-
-    const previousDue = db.waterMeter
-      .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) < monthKey)
-      .sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month))
-      .reduce((sum, x) => {
-        const xMonthKey = getMonthKey(x.counter_month);
-        const xMonthBill = db.monthlyBills.find(b => getMonthKey(b.month) === xMonthKey) || {
-          water_bill: 0,
-          fix_bill: 0
-        };
-
-        const xWaterFees = calculateWaterFees(x);
-        const xFixBill = Number(xMonthBill.fix_bill || 0);
-        const xRawDue = xWaterFees + xFixBill;
-
-        const oldCredit = Math.max(0, previousPaid - sum);
-        const effectiveDue = Math.max(0, xRawDue - oldCredit);
-
-        return sum + effectiveDue;
-      }, 0);
-
-    const previousAdvance = Math.max(0, previousPaid - previousDue);
-    const applied_credit = Math.min(previousAdvance, raw_due);
-    const totalDue = raw_due - applied_credit;
-
-    const paid_toward_current_due = Math.min(totalDue, currentMonthPayment);
-    const totalPaid = applied_credit + paid_toward_current_due;
-
-    const pending_dues = Math.max(0, totalDue - currentMonthPayment);
-    const advance_credit = Math.max(0, previousAdvance - applied_credit) + Math.max(0, currentMonthPayment - totalDue);
-    const balance = advance_credit - pending_dues;
-
-    const roundedAdvance = Math.round(Number(advance_credit || 0));
-    const roundedPending = Math.round(Number(pending_dues || 0));
-    const roundedPaid = Math.round(Number(totalPaid || 0));
-    const roundedDue = Math.round(Number(totalDue || 0));
-
-    let status = "Overdue";
-
-    if (roundedAdvance > 0) {
-      status = "Advance";
-    } else if (roundedPending === 0 && (roundedPaid > 0 || roundedDue === 0)) {
-      status = "Paid";
-    } else if (roundedPaid > 0 && roundedPending > 0) {
-      status = "Partial";
-    } else {
-      status = "Overdue";
+  db.waterMeter.forEach(wm => {
+    if (!groupedByApartment[wm.apartment_id]) {
+      groupedByApartment[wm.apartment_id] = [];
     }
-
-    return {
-      id: wm.id,
-      apartment_id: wm.apartment_id,
-      owner_name: apartment.owner_name || "",
-      counter_month: wm.counter_month,
-      usage,
-      water_fees: waterFees,
-      fix_bill: fixBill,
-      raw_due,
-      applied_credit,
-      total_due: totalDue,
-      total_paid: totalPaid,
-      balance,
-      pending_dues,
-      advance_credit,
-      status
-    };
+    groupedByApartment[wm.apartment_id].push(wm);
   });
 
-  return rows.sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month));
+  const rows = [];
+
+  Object.keys(groupedByApartment).forEach(apartmentId => {
+    const apartment = db.apartments.find(a => a.apartment_id === apartmentId) || {};
+    const apartmentRows = groupedByApartment[apartmentId]
+      .slice()
+      .sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month));
+
+    let carryAdvance = 0;
+
+    apartmentRows.forEach(wm => {
+      const monthKey = getMonthKey(wm.counter_month);
+      const usage = Number(wm.new_counter || 0) - Number(wm.previous_counter || 0);
+
+      const monthBill = db.monthlyBills.find(
+        b => getMonthKey(b.month) === monthKey
+      ) || { water_bill: 0, fix_bill: 0 };
+
+      const waterFees = calculateWaterFees(wm);
+      const fixBill = Number(monthBill.fix_bill || 0);
+      const raw_due = waterFees + fixBill;
+
+      const currentMonthPayment = db.payments
+        .filter(p => p.apartment_id === apartmentId && getMonthKey(p.month) === monthKey)
+        .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+
+      const applied_credit = Math.min(carryAdvance, raw_due);
+      const net_due = raw_due - applied_credit;
+
+      const paid_toward_due = Math.min(currentMonthPayment, net_due);
+      const total_paid = applied_credit + paid_toward_due;
+
+      const pending_dues = Math.max(0, net_due - currentMonthPayment);
+
+      const remaining_old_advance = Math.max(0, carryAdvance - applied_credit);
+      const new_advance_from_payment = Math.max(0, currentMonthPayment - net_due);
+      const advance_credit = remaining_old_advance + new_advance_from_payment;
+
+      const roundedAdvance = Math.round(Number(advance_credit || 0));
+      const roundedPending = Math.round(Number(pending_dues || 0));
+      const roundedPaid = Math.round(Number(total_paid || 0));
+      const roundedNetDue = Math.round(Number(net_due || 0));
+
+      let status = "Overdue";
+      if (roundedAdvance > 0) {
+        status = "Advance";
+      } else if (roundedPending === 0 && (roundedPaid > 0 || roundedNetDue === 0)) {
+        status = "Paid";
+      } else if (roundedPaid > 0 && roundedPending > 0) {
+        status = "Partial";
+      } else {
+        status = "Overdue";
+      }
+
+      rows.push({
+        id: wm.id,
+        apartment_id: apartmentId,
+        owner_name: apartment.owner_name || "",
+        counter_month: wm.counter_month,
+        usage,
+        water_fees: waterFees,
+        fix_bill: fixBill,
+        raw_due,
+        applied_credit,
+        total_due: net_due,
+        total_paid,
+        pending_dues,
+        advance_credit,
+        balance: advance_credit - pending_dues,
+        status
+      });
+
+      carryAdvance = advance_credit;
+    });
+  });
+
+  return rows.sort((a, b) => {
+    const aptCompare = String(a.apartment_id).localeCompare(String(b.apartment_id), undefined, {
+      numeric: true,
+      sensitivity: "base"
+    });
+    if (aptCompare !== 0) return aptCompare;
+    return new Date(a.counter_month) - new Date(b.counter_month);
+  });
 }
 
 function getCombinedDashboardRows() {
