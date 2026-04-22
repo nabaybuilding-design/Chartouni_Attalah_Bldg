@@ -143,6 +143,14 @@ function getDetailedDashboardRows() {
     const applied_credit = previousBalance > 0 ? Math.min(previousBalance, raw_due) : 0;
     const totalDue = raw_due - applied_credit;
 
+    const available_amount = previousBalance > 0
+      ? previousBalance + db.payments
+          .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) === monthKey)
+          .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0)
+      : db.payments
+          .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) === monthKey)
+          .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+    
     const totalPaid = cumulativePaid;
     const balance = cumulativePaid - cumulativeDue;
     const pending_dues = balance < 0 ? Math.abs(balance) : 0;
@@ -177,6 +185,7 @@ function getDetailedDashboardRows() {
       applied_credit,
       total_due: totalDue,
       total_paid: totalPaid,
+      available_amount: available_amount,
       balance,
       pending_dues,
       advance_credit,
@@ -872,7 +881,7 @@ function renderPaymentsTable() {
               <th>Original Due</th>
               <th>Credit Used</th>
               <th>Net Due</th>
-              <th>Total Paid</th>
+              <th>Available Amount</th>
               <th>Pending Dues</th>
               <th>Advance Credit</th>
               <th>Status</th>
@@ -891,7 +900,7 @@ function renderPaymentsTable() {
                 <td>${formatNumber(r.raw_due || 0)}</td>
                 <td>${formatNumber(r.applied_credit || 0)}</td>
                 <td>${formatNumber(r.total_due)}</td>
-                <td>${formatNumber(r.total_paid)}</td>
+                <td>${formatNumber(r.available_amount || 0)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
                 <td>${formatNumber(r.advance_credit || 0)}</td>
                 <td>${r.status}</td>
