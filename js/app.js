@@ -81,14 +81,14 @@ function getDetailedDashboardRows() {
     const fixBill = Number(monthBill.fix_bill || 0);
     const raw_due = waterFees + fixBill;
 
-    const cumulativePaid = db.payments
-      .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) <= monthKey)
+    const currentMonthPayment = db.payments
+      .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) === monthKey)
       .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
 
     const previousPaid = db.payments
       .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) < monthKey)
       .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-    
+
     const previousDue = db.waterMeter
       .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) < monthKey)
       .sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month))
@@ -98,71 +98,35 @@ function getDetailedDashboardRows() {
           water_bill: 0,
           fix_bill: 0
         };
-    
+
         const xWaterFees = calculateWaterFees(x);
         const xFixBill = Number(xMonthBill.fix_bill || 0);
         const xRawDue = xWaterFees + xFixBill;
-    
+
         const oldCredit = Math.max(0, previousPaid - sum);
         const effectiveDue = Math.max(0, xRawDue - oldCredit);
-    
-        return sum + effectiveDue;
-      }, 0);
-    
-    
-    const cumulativeDue = db.waterMeter
-      .filter(x => x.apartment_id === wm.apartment_id && getMonthKey(x.counter_month) <= monthKey)
-      .sort((a, b) => new Date(a.counter_month) - new Date(b.counter_month))
-      .reduce((sum, x) => {
-        const xMonthKey = getMonthKey(x.counter_month);
-        const xMonthBill = db.monthlyBills.find(b => getMonthKey(b.month) === xMonthKey) || {
-          water_bill: 0,
-          fix_bill: 0
-        };
 
-        const xWaterFees = calculateWaterFees(x);
-        const xFixBill = Number(xMonthBill.fix_bill || 0);
-        const xRawDue = xWaterFees + xFixBill;
-
-        const prevDue = sum;
-        const prevPaid = db.payments
-          .filter(p => p.apartment_id === x.apartment_id && getMonthKey(p.month) < xMonthKey)
-          .reduce((s, p) => s + Number(p.amount_paid || 0), 0);
-        
-        const prevBalance = prevPaid - prevDue;
-        
-        let effectiveDue = xRawDue;
-        if (prevBalance > 0) {
-          effectiveDue = Math.max(0, xRawDue - prevBalance);
-        }
-        
         return sum + effectiveDue;
       }, 0);
 
-    const previousBalance = previousPaid - previousDue;
-    const applied_credit = previousBalance > 0 ? Math.min(previousBalance, raw_due) : 0;
+    const previousAdvance = Math.max(0, previousPaid - previousDue);
+    const applied_credit = Math.min(previousAdvance, raw_due);
     const totalDue = raw_due - applied_credit;
 
-    const available_amount = previousBalance > 0
-      ? previousBalance + db.payments
-          .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) === monthKey)
-          .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0)
-      : db.payments
-          .filter(p => p.apartment_id === wm.apartment_id && getMonthKey(p.month) === monthKey)
-          .reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-    
-    const totalPaid = cumulativePaid;
-    const balance = cumulativePaid - cumulativeDue;
-    const pending_dues = balance < 0 ? Math.abs(balance) : 0;
-    const advance_credit = balance > 0 ? balance : 0;
+    const paid_toward_current_due = Math.min(totalDue, currentMonthPayment);
+    const totalPaid = applied_credit + paid_toward_current_due;
+
+    const pending_dues = Math.max(0, totalDue - currentMonthPayment);
+    const advance_credit = Math.max(0, previousAdvance - applied_credit) + Math.max(0, currentMonthPayment - totalDue);
+    const balance = advance_credit - pending_dues;
 
     const roundedAdvance = Math.round(Number(advance_credit || 0));
     const roundedPending = Math.round(Number(pending_dues || 0));
     const roundedPaid = Math.round(Number(totalPaid || 0));
     const roundedDue = Math.round(Number(totalDue || 0));
-    
+
     let status = "Overdue";
-    
+
     if (roundedAdvance > 0) {
       status = "Advance";
     } else if (roundedPending === 0 && (roundedPaid > 0 || roundedDue === 0)) {
@@ -185,7 +149,6 @@ function getDetailedDashboardRows() {
       applied_credit,
       total_due: totalDue,
       total_paid: totalPaid,
-      available_amount: available_amount,
       balance,
       pending_dues,
       advance_credit,
@@ -223,14 +186,14 @@ function getCombinedDashboardRows() {
     grouped[row.apartment_id].total_water_fees += Number(row.water_fees || 0);
     grouped[row.apartment_id].total_fix_bill += Number(row.fix_bill || 0);
     grouped[row.apartment_id].raw_due += Number(row.raw_due || 0);
-    grouped[row.apartment_id].total_due += Number(row.raw_due || 0);
+    grouped[row.apartment_id].applied_credit += Number(row.applied_credit || 0);
+    grouped[row.apartment_id].total_due += Number(row.total_due || 0);
 
     if (new Date(row.counter_month) >= new Date(grouped[row.apartment_id].last_month)) {
       grouped[row.apartment_id].last_month = row.counter_month;
       grouped[row.apartment_id].total_paid = Number(row.total_paid || 0);
       grouped[row.apartment_id].pending_dues = Number(row.pending_dues || 0);
       grouped[row.apartment_id].advance_credit = Number(row.advance_credit || 0);
-      grouped[row.apartment_id].applied_credit = 0;
     }
   });
 
@@ -238,7 +201,7 @@ function getCombinedDashboardRows() {
     const advance = Math.round(Number(item.advance_credit || 0));
     const pending = Math.round(Number(item.pending_dues || 0));
     const paid = Math.round(Number(item.total_paid || 0));
-  
+
     if (advance > 0) {
       item.status = "Advance";
     } else if (pending === 0 && paid > 0) {
@@ -881,7 +844,7 @@ function renderPaymentsTable() {
               <th>Original Due</th>
               <th>Credit Used</th>
               <th>Net Due</th>
-              <th>Available Amount</th>
+              <th>Total Paid</th>
               <th>Pending Dues</th>
               <th>Advance Credit</th>
               <th>Status</th>
@@ -900,7 +863,7 @@ function renderPaymentsTable() {
                 <td>${formatNumber(r.raw_due || 0)}</td>
                 <td>${formatNumber(r.applied_credit || 0)}</td>
                 <td>${formatNumber(r.total_due)}</td>
-                <td>${formatNumber(r.available_amount || 0)}</td>
+                <td>${formatNumber(r.total_paid)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
                 <td>${formatNumber(r.advance_credit || 0)}</td>
                 <td>${r.status}</td>
