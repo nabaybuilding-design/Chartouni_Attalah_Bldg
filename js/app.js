@@ -38,10 +38,15 @@ function apartmentOptions(selectedValue = "") {
 
 function getFilteredDetailedRows() {
   const statusFilter = document.getElementById("paymentsStatusFilter")?.value || "";
+  const monthFilter = document.getElementById("paymentsMonthFilter")?.value || "";
   let rows = getDetailedDashboardRows();
 
   if (statusFilter) {
     rows = rows.filter(r => r.status === statusFilter);
+  }
+
+  if (monthFilter) {
+    rows = rows.filter(r => getMonthKey(r.counter_month) === getMonthKey(monthFilter));
   }
 
   return rows;
@@ -831,6 +836,10 @@ function renderPaymentsTable() {
             <option value="Overdue">Overdue</option>
             <option value="Advance">Advance</option>
           </select>
+          
+          <label for="paymentsMonthFilter">Counter Month</label>
+          <input id="paymentsMonthFilter" type="month" onchange="renderPaymentsTable()">
+          
           <button class="btn-primary" type="button" onclick="openAddPaymentModal()">Add New Record</button>
         </div>
       </div>
