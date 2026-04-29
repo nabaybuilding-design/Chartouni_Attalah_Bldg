@@ -1083,6 +1083,7 @@ async function insertOtherDebt() {
     debt_date: document.getElementById("other_debt_date").value,
     label: document.getElementById("other_debt_label").value,
     amount: Number(document.getElementById("other_debt_amount").value || 0),
+    transaction_status: document.getElementById("other_debt_transaction_status").value,
     notes: document.getElementById("other_debt_notes").value
   };
 
@@ -1110,6 +1111,7 @@ async function saveOtherDebt(id) {
       debt_date: row.debt_date,
       label: row.label,
       amount: Number(row.amount || 0),
+      transaction_status: row.transaction_status || "debit",
       notes: row.notes
     })
     .eq("id", id);
