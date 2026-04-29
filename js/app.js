@@ -52,6 +52,17 @@ function getFilteredDetailedRows() {
   return rows;
 }
 
+function getFilteredOtherDebtsRows() {
+  const statusFilter = document.getElementById("otherDebtsStatusFilter")?.value || "";
+  let rows = db.otherDebts || [];
+
+  if (statusFilter) {
+    rows = rows.filter(r => r.transaction_status === statusFilter);
+  }
+
+  return rows;
+}
+
 function calculateWaterFees(wm) {
   const usage = Number(wm.new_counter || 0) - Number(wm.previous_counter || 0);
 
@@ -992,13 +1003,21 @@ function renderUserPaymentHistory() {
 ========================= */
 
 function renderOtherDebtsTable() {
-  const rows = db.otherDebts || [];
+  const rows = getFilteredOtherDebtsRows();
 
   document.getElementById("mainContent").innerHTML = `
     <div class="card">
       <div class="card-title">
         <h3>Other Debts</h3>
-        <button class="btn-primary" type="button" onclick="openAddOtherDebtModal()">Add New Record</button>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label for="otherDebtsStatusFilter">Status</label>
+          <select id="otherDebtsStatusFilter" onchange="renderOtherDebtsTable()">
+            <option value="">All</option>
+            <option value="debit">Debit</option>
+            <option value="credit">Credit</option>
+          </select>
+          <button class="btn-primary" type="button" onclick="openAddOtherDebtModal()">Add New Record</button>
+        </div>
       </div>
 
       <div class="table-wrap">
