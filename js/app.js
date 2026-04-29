@@ -267,7 +267,9 @@ async function getBuildingCaisseSummary() {
     automaticDebts: Number(row.water_debts || 0),
     manualDebts: Number(row.other_debts || 0),
     totalDebts: Number(row.total_debts || 0),
-    buildingBalance: Number(row.building_balance || 0)
+    buildingBalance: Number(row.building_balance || 0),
+    totalAdvance: Number(row.total_advance || 0),
+    netPosition: Number(row.net_position || 0)
   };
 }
 
@@ -917,7 +919,7 @@ async function renderUserDashboard() {
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
       <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
-      <div class="summary-box">Net Position<strong>${formatNumber(caisse.buildingBalance - getCombinedDashboardRows().reduce((s, r) => s + Number(r.advance_credit || 0), 0))}</strong></div>
+      <div class="summary-box">Net Position<strong>${formatNumber(caisse.netPosition)}</strong></div>
     </div>
 
     <div class="card">
