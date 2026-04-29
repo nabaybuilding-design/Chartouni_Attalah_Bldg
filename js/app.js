@@ -917,7 +917,7 @@ async function renderUserDashboard() {
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
       <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
-      <div class="summary-box">Net Position<strong>${formatNumber(caisse.buildingBalance - (rows[0]?.advance_credit || 0))}</strong></div>
+      <div class="summary-box">Net Position<strong>${formatNumber(caisse.buildingBalance - getCombinedDashboardRows().reduce((s, r) => s + Number(r.advance_credit || 0), 0))}</strong></div>
     </div>
 
     <div class="card">
