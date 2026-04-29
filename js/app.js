@@ -1008,6 +1008,7 @@ function renderOtherDebtsTable() {
               <th>Date</th>
               <th>Label</th>
               <th>Amount</th>
+              <th>Transaction Status</th>
               <th>Notes</th>
               <th>Action</th>
             </tr>
@@ -1018,6 +1019,12 @@ function renderOtherDebtsTable() {
                 <td><input type="date" value="${escapeHtml(r.debt_date || "")}" onchange="updateOtherDebt(${r.id}, 'debt_date', this.value)"></td>
                 <td><input type="text" value="${escapeHtml(r.label || "")}" onchange="updateOtherDebt(${r.id}, 'label', this.value)"></td>
                 <td><input type="number" value="${escapeHtml(r.amount || 0)}" onchange="updateOtherDebt(${r.id}, 'amount', this.value)"></td>
+                <td>
+                  <select onchange="updateOtherDebt(${r.id}, 'transaction_status', this.value)">
+                    <option value="debit" ${r.transaction_status === "debit" ? "selected" : ""}>Debit</option>
+                    <option value="credit" ${r.transaction_status === "credit" ? "selected" : ""}>Credit</option>
+                  </select>
+                </td>
                 <td><input type="text" value="${escapeHtml(r.notes || "")}" onchange="updateOtherDebt(${r.id}, 'notes', this.value)"></td>
                 <td>
                   <button type="button" onclick="saveOtherDebt(${r.id})">Save</button>
@@ -1057,6 +1064,13 @@ function openAddOtherDebtModal() {
       <div class="form-group" style="grid-column: 1 / -1;">
         <label>Notes</label>
         <textarea id="other_debt_notes"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Transaction Status</label>
+        <select id="other_debt_transaction_status">
+          <option value="debit">Debit</option>
+          <option value="credit">Credit</option>
+        </select>
       </div>
     </div>
 
