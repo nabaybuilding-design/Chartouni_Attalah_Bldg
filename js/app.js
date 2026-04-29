@@ -385,9 +385,9 @@ async function renderAdminOverview() {
       <div class="summary-box">Net Balance<strong>${formatNumber(totalRemaining)}</strong></div>
       <div class="summary-box">Outstanding Dues<strong>${formatNumber(totalPending)}</strong></div>
       <div class="summary-box">Advance Credits<strong>${formatNumber(totalAdvance)}</strong></div>
-      <div class="summary-box">Building Credits<strong>${formatNumber(caisse.totalCredits)}</strong></div>
+      <div class="summary-box">Total Credits<strong>${formatNumber(caisse.totalCredits)}</strong></div>
       <div class="summary-box">Water Debts<strong>${formatNumber(caisse.automaticDebts)}</strong></div>
-      <div class="summary-box">Other Debts<strong>${formatNumber(caisse.manualDebts)}</strong></div>
+      <div class="summary-box">Other Debits<strong>${formatNumber(caisse.manualDebts)}</strong></div>
       <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
     </div>
 
