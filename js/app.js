@@ -400,6 +400,7 @@ async function renderAdminOverview() {
       <div class="summary-box">Net Balance<strong>${formatNumber(totalRemaining)}</strong></div>
       <div class="summary-box">Outstanding Dues<strong>${formatNumber(totalPending)}</strong></div>
       <div class="summary-box">Advance Credits<strong>${formatNumber(totalAdvance)}</strong></div>
+      <div class="summary-box">Net Position<strong>${formatNumber(caisse.buildingBalance - totalAdvance)}</strong></div>
       <div class="summary-box">Total Credits<strong>${formatNumber(caisse.totalCredits)}</strong></div>
       <div class="summary-box">Water Debts<strong>${formatNumber(caisse.automaticDebts)}</strong></div>
       <div class="summary-box">Other Debits<strong>${formatNumber(caisse.manualDebts)}</strong></div>
@@ -916,6 +917,7 @@ async function renderUserDashboard() {
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
       <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
+      <div class="summary-box">Net Position<strong>${formatNumber(caisse.buildingBalance - (rows[0]?.advance_credit || 0))}</strong></div>
     </div>
 
     <div class="card">
