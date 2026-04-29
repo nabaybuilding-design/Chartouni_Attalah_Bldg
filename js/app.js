@@ -919,7 +919,7 @@ async function renderUserDashboard() {
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
       <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
-      <div class="summary-box">Net Position<strong>${formatNumber(caisse.netPosition)}</strong></div>
+      <div class="summary-box">Net Position<strong>${formatNumber(caisse.buildingBalance - totalAdvance)}</strong></div>
     </div>
 
     <div class="card">
