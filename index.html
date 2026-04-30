@@ -31,5 +31,16 @@
   <script src="js/config.js?v=5"></script>
   <script src="js/supabaseClient.js?v=5"></script>
   <script src="js/auth.js?v=5"></script>
+
+  <script>
+  ["loginEmail", "loginPassword"].forEach(id => {
+    document.getElementById(id).addEventListener("keydown", function(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        document.getElementById("loginBtn").click();
+      }
+    });
+  });
+  </script>
 </body>
 </html>
