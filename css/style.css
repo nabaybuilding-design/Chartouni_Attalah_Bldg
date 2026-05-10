@@ -483,3 +483,56 @@ td textarea {
     gap: 8px;
   }
 }
+
+/* User mobile card view */
+.user-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .user-desktop-table {
+    display: none;
+  }
+
+  .user-mobile-cards {
+    display: grid;
+    gap: 12px;
+  }
+
+  .user-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .user-card h4 {
+    margin: 0 0 6px;
+    font-size: 16px;
+  }
+
+  .user-card .status-line {
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .user-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .user-card-item {
+    background: var(--light-grey);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .user-card-item strong {
+    display: block;
+    font-size: 15px;
+    margin-top: 4px;
+  }
+}
