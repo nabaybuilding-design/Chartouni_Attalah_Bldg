@@ -915,15 +915,24 @@ async function renderUserDashboard() {
   const rows = getCombinedDashboardRows().filter(
     r => r.apartment_id === currentUser.apartment_id
   );
+
   const caisse = await getBuildingCaisseSummary();
 
   document.getElementById("mainContent").innerHTML = `
     <div class="summary-boxes">
-      <div class="summary-box">Building Caisse<strong>${formatNumber(caisse.buildingBalance)}</strong></div>
-      <div class="summary-box">Net Position<strong>${formatNumber(caisse.netPosition)}</strong></div>
+      <div class="summary-box">
+        Building Caisse
+        <strong>${formatNumber(caisse.buildingBalance)}</strong>
+      </div>
+
+      <div class="summary-box">
+        Net Position
+        <strong>${formatNumber(caisse.netPosition)}</strong>
+      </div>
     </div>
 
-    <div class="card">
+    <!-- Desktop Table -->
+    <div class="card user-desktop-table">
       <div class="card-title">
         <h3>My Overview</h3>
       </div>
@@ -946,6 +955,7 @@ async function renderUserDashboard() {
               <th>Status</th>
             </tr>
           </thead>
+
           <tbody>
             ${rows.map(r => `
               <tr>
@@ -966,6 +976,41 @@ async function renderUserDashboard() {
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="user-mobile-cards">
+      ${rows.map(r => `
+        <div class="user-card">
+          <h4>${r.apartment_id} - ${r.owner_name}</h4>
+
+          <div class="status-line">
+            Status: ${r.status}
+          </div>
+
+          <div class="user-card-grid">
+            <div class="user-card-item">
+              Total Due
+              <strong>${formatNumber(r.total_due)}</strong>
+            </div>
+
+            <div class="user-card-item">
+              Total Paid
+              <strong>${formatNumber(r.total_paid)}</strong>
+            </div>
+
+            <div class="user-card-item">
+              Pending
+              <strong>${formatNumber(r.pending_dues)}</strong>
+            </div>
+
+            <div class="user-card-item">
+              Advance
+              <strong>${formatNumber(r.advance_credit || 0)}</strong>
+            </div>
+          </div>
+        </div>
+      `).join("")}
     </div>
   `;
 }
