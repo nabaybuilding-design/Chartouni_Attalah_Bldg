@@ -208,6 +208,7 @@ function getCombinedDashboardRows() {
     grouped[row.apartment_id].raw_due += Number(row.raw_due || 0);
     grouped[row.apartment_id].applied_credit += Number(row.applied_credit || 0);
     grouped[row.apartment_id].total_due += Number(row.total_due || 0);
+    grouped[row.apartment_id].pending_dues += Number(row.pending_dues || 0);
 
     if (new Date(row.counter_month) >= new Date(grouped[row.apartment_id].last_month)) {
       grouped[row.apartment_id].last_month = row.counter_month;
