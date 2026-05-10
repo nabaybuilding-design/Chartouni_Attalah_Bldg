@@ -361,14 +361,36 @@ td textarea {
 @media (max-width: 1000px) {
   .app {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
     grid-template-areas:
       "header"
+      "sidebar"
       "main"
       "footer";
   }
 
   .sidebar {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .sidebar h3 {
     display: none;
+  }
+
+  .menu-btn {
+    width: auto;
+    min-width: max-content;
+    margin-bottom: 0;
   }
 
   .summary-boxes {
