@@ -535,4 +535,17 @@ td textarea {
     font-size: 15px;
     margin-top: 4px;
   }
+
+  /* Overview row colors */
+.row-overdue td {
+  background: #fee2e2 !important;
+}
+
+.row-partial td {
+  background: #dcfce7 !important;
+}
+
+.row-advance td {
+  background: #dbeafe !important;
+}
 }
