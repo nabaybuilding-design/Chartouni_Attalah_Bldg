@@ -536,19 +536,19 @@ td textarea {
     margin-top: 4px;
   }
 
-tr.row-overdue td,
-.table-wrap table tr.row-overdue td {
+td.row-overdue {
   background-color: #fee2e2 !important;
+  font-weight: bold;
 }
 
-tr.row-partial td,
-.table-wrap table tr.row-partial td {
+td.row-partial {
   background-color: #dcfce7 !important;
+  font-weight: bold;
 }
 
-tr.row-advance td,
-.table-wrap table tr.row-advance td {
+td.row-advance {
   background-color: #dbeafe !important;
+  font-weight: bold;
 }
 
 .user-card.row-overdue {
