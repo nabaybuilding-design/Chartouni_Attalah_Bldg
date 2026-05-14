@@ -536,16 +536,30 @@ td textarea {
     margin-top: 4px;
   }
 
-  /* Overview row colors */
-.row-overdue td {
-  background: #fee2e2 !important;
+tr.row-overdue td,
+.table-wrap table tr.row-overdue td {
+  background-color: #fee2e2 !important;
 }
 
-.row-partial td {
-  background: #dcfce7 !important;
+tr.row-partial td,
+.table-wrap table tr.row-partial td {
+  background-color: #dcfce7 !important;
 }
 
-.row-advance td {
-  background: #dbeafe !important;
+tr.row-advance td,
+.table-wrap table tr.row-advance td {
+  background-color: #dbeafe !important;
+}
+
+.user-card.row-overdue {
+  background-color: #fee2e2 !important;
+}
+
+.user-card.row-partial {
+  background-color: #dcfce7 !important;
+}
+
+.user-card.row-advance {
+  background-color: #dbeafe !important;
 }
 }
