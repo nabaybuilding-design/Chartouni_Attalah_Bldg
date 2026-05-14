@@ -16,6 +16,13 @@ function formatNumber(value) {
   return Math.round(Number(value || 0));
 }
 
+function getStatusRowClass(status) {
+  if (status === "Overdue") return "row-overdue";
+  if (status === "Partial") return "row-partial";
+  if (status === "Advance") return "row-advance";
+  return "";
+}
+
 function savePDF() {
   window.print();
 }
@@ -435,7 +442,7 @@ async function renderAdminOverview() {
           </thead>
           <tbody>
             ${rows.map(r => `
-              <tr class="${r.status === 'Overdue' ? 'row-overdue' : r.status === 'Partial' ? 'row-partial' : r.status === 'Advance' ? 'row-advance' : ''}">
+              <tr class="${getStatusRowClass(r.status)}">
                 <td>${r.apartment_id}</td>
                 <td>${r.owner_name}</td>
                 <td>${formatNumber(r.total_usage)}</td>
@@ -958,7 +965,7 @@ async function renderUserDashboard() {
 
           <tbody>
             ${rows.map(r => `
-              <tr class="${r.status === 'Overdue' ? 'row-overdue' : r.status === 'Partial' ? 'row-partial' : r.status === 'Advance' ? 'row-advance' : ''}">
+              <tr class="${getStatusRowClass(r.status)}">
                 <td>${r.apartment_id}</td>
                 <td>${r.owner_name}</td>
                 <td>${formatNumber(r.total_usage)}</td>
