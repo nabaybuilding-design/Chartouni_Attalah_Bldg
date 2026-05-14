@@ -442,7 +442,7 @@ async function renderAdminOverview() {
           </thead>
           <tbody>
             ${rows.map(r => `
-              <tr class="${getStatusRowClass(r.status)}">
+              <tr>
                 <td>${r.apartment_id}</td>
                 <td>${r.owner_name}</td>
                 <td>${formatNumber(r.total_usage)}</td>
@@ -454,7 +454,7 @@ async function renderAdminOverview() {
                 <td>${formatNumber(r.total_paid)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
                 <td>${formatNumber(r.advance_credit || 0)}</td>
-                <td>${r.status}</td>
+                <td class="${getStatusRowClass(r.status)}">${r.status}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -965,7 +965,7 @@ async function renderUserDashboard() {
 
           <tbody>
             ${rows.map(r => `
-              <tr class="${getStatusRowClass(r.status)}">
+              <tr>
                 <td>${r.apartment_id}</td>
                 <td>${r.owner_name}</td>
                 <td>${formatNumber(r.total_usage)}</td>
@@ -977,7 +977,7 @@ async function renderUserDashboard() {
                 <td>${formatNumber(r.total_paid)}</td>
                 <td>${formatNumber(r.pending_dues)}</td>
                 <td>${formatNumber(r.advance_credit || 0)}</td>
-                <td>${r.status}</td>
+                <td class="${getStatusRowClass(r.status)}">${r.status}</td>
               </tr>
             `).join("")}
           </tbody>
