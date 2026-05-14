@@ -435,11 +435,7 @@ async function renderAdminOverview() {
           </thead>
           <tbody>
             ${rows.map(r => `
-              <tr class="
-                ${r.status === 'Overdue' ? 'row-overdue' : ''}
-                ${r.status === 'Partial' ? 'row-partial' : ''}
-                ${r.status === 'Advance' ? 'row-advance' : ''}
-              ">
+              <tr class="${r.status === 'Overdue' ? 'row-overdue' : r.status === 'Partial' ? 'row-partial' : r.status === 'Advance' ? 'row-advance' : ''}">
                 <td>${r.apartment_id}</td>
                 <td>${r.owner_name}</td>
                 <td>${formatNumber(r.total_usage)}</td>
@@ -962,11 +958,7 @@ async function renderUserDashboard() {
 
           <tbody>
             ${rows.map(r => `
-              <tr class="
-                ${r.status === 'Overdue' ? 'row-overdue' : ''}
-                ${r.status === 'Partial' ? 'row-partial' : ''}
-                ${r.status === 'Advance' ? 'row-advance' : ''}
-              ">
+              <tr class="${r.status === 'Overdue' ? 'row-overdue' : r.status === 'Partial' ? 'row-partial' : r.status === 'Advance' ? 'row-advance' : ''}">
                 <td>${r.apartment_id}</td>
                 <td>${r.owner_name}</td>
                 <td>${formatNumber(r.total_usage)}</td>
@@ -989,7 +981,7 @@ async function renderUserDashboard() {
     <!-- Mobile Cards -->
     <div class="user-mobile-cards">
       ${rows.map(r => `
-        <div class="user-card">
+        <div class="user-card ${r.status === 'Overdue' ? 'row-overdue' : r.status === 'Partial' ? 'row-partial' : r.status === 'Advance' ? 'row-advance' : ''}">
           <h4>${r.apartment_id} - ${r.owner_name}</h4>
 
           <div class="status-line">
