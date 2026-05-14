@@ -988,7 +988,7 @@ async function renderUserDashboard() {
     <!-- Mobile Cards -->
     <div class="user-mobile-cards">
       ${rows.map(r => `
-        <div class="user-card ${r.status === 'Overdue' ? 'row-overdue' : r.status === 'Partial' ? 'row-partial' : r.status === 'Advance' ? 'row-advance' : ''}">
+        <div class="user-card ${getStatusRowClass(r.status)}">
           <h4>${r.apartment_id} - ${r.owner_name}</h4>
 
           <div class="status-line">
